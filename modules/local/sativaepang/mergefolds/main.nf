@@ -12,6 +12,7 @@ process SATIVAEPANG_MERGEFOLDS {
 
     output:
     tuple val(meta), path("*.l1o_tasks"), emit: taskdir
+    tuple val("${task.process}"), val('sativaepang'), eval("sativa-epang --version | cut -d' ' -f2"), topic: versions, emit: versions_sativaepang
 
     when:
     task.ext.when == null || task.ext.when
