@@ -43,6 +43,42 @@ nextflow_process {
 
     }
 
+    test("gzipped sequences and metadata") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv.gz')
+                new java.util.zip.GZIPOutputStream(new FileOutputStream(metadata)).withWriter { w ->
+                    w << header + '\\n' +
+                        [ 'RS_GCF_000000001.1', '95', '1', '', '', 'none', 'assembly from type material',
+                          'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                          'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ].join('\\t') + '\\n'
+                }
+                def seq = File.createTempFile('test', '.fna.gz')
+                new java.util.zip.GZIPOutputStream(new FileOutputStream(seq)).withWriter { w ->
+                    w << '>RS_GCF_000000001.1~NZ_CONTIG001.1 [location=1..1000] [ssu_len=1000] [contig_len=50000]\\nACGT\\n'
+                }
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weight = weights.readLines().find { it.startsWith('RS_GCF_000000001.1_NZ_CONTIG001.1\t') }.split('\t')[1] as Double
+            assertAll(
+                { assert weight == 107.0 },
+            )
+        }
+
+    }
+
     test("unmatched accession and non-GTDB header excluded from output") {
 
         when {

@@ -74,16 +74,23 @@ TYPE_MATERIAL_TERM = {
 def opener(path):
     return gzip.open(path, 'rt') if path.endswith('.gz') else open(path)
 
-def load_metadata(path):
-    if not path:
-        return {}
-    with opener(path) as fh:
-        rows = {row['accession']: row for row in csv.DictReader(fh, delimiter='\\t')}
-    return rows
+METADATA_COLUMNS = [
+    'ncbi_genome_category', 'gtdb_taxonomy', 'ssu_silva_taxonomy', 'ncbi_type_material_designation',
+    'checkm2_completeness', 'checkm2_contamination', 'checkm_completeness', 'checkm_contamination',
+]
 
-metadata = {}
-metadata.update(load_metadata(bac120_in))
-metadata.update(load_metadata(ar53_in))
+def sniff_format(path):
+    with opener(path) as fh:
+        first_line = next((l.strip() for l in fh if l.strip()), '')
+    if first_line.startswith('>'):
+        return 'fasta'
+    if first_line.upper().startswith('CLUSTAL'):
+        return 'clustal'
+    return 'phylip-relaxed'
+
+with opener(sequences_in) as fh:
+    records = list(SeqIO.parse(fh, sniff_format(sequences_in)))
+input_accessions = {m.group(0) for m in (ACCESSION_RE.match(r.id) for r in records) if m}
 
 def gtdb_ranks(taxonomy):
     # Strip GTDB's 'x__' rank prefix; only domain..genus (drop species) --
@@ -110,17 +117,26 @@ def silva_ranks(taxonomy):
 # against real GTDB r226 data: true synonyms sit at ~90-100% co-occurrence, genuine
 # errors under ~1%).
 SYNONYM_THRESHOLD = 0.05
+# Stream the metadata once: synonym counts need every isolate row, but only rows for
+# accessions actually in the input are kept, and only the columns used below.
 rank_counts = [dict() for _ in RANKS]
-for row in metadata.values():
-    if row.get('ncbi_genome_category') != 'none':
+metadata = {}
+for path in (bac120_in, ar53_in):
+    if not path:
         continue
-    g_ranks = gtdb_ranks(row.get('gtdb_taxonomy', 'none'))
-    s_ranks = silva_ranks(row.get('ssu_silva_taxonomy', 'none'))
-    for i, (g_name, s_name) in enumerate(zip(g_ranks, s_ranks)):
-        if g_name is None or s_name is None:
-            continue
-        counts = rank_counts[i].setdefault(g_name, {})
-        counts[s_name] = counts.get(s_name, 0) + 1
+    with opener(path) as fh:
+        for row in csv.DictReader(fh, delimiter='\\t'):
+            if row['accession'] in input_accessions:
+                metadata[row['accession']] = {c: row.get(c) for c in METADATA_COLUMNS}
+            if row.get('ncbi_genome_category') != 'none':
+                continue
+            g_ranks = gtdb_ranks(row.get('gtdb_taxonomy', 'none'))
+            s_ranks = silva_ranks(row.get('ssu_silva_taxonomy', 'none'))
+            for i, (g_name, s_name) in enumerate(zip(g_ranks, s_ranks)):
+                if g_name is None or s_name is None:
+                    continue
+                counts = rank_counts[i].setdefault(g_name, {})
+                counts[s_name] = counts.get(s_name, 0) + 1
 
 synonyms = [dict() for _ in RANKS]
 for i, counts_by_gtdb_name in enumerate(rank_counts):
@@ -166,17 +182,6 @@ def weight_for(row, contig_len):
         + contig_len_term(contig_len)
         + mismatch_penalty(row.get('gtdb_taxonomy', 'none'), row.get('ssu_silva_taxonomy', 'none'))
     )
-
-with open(sequences_in) as fh:
-    first_line = next((l.strip() for l in fh if l.strip()), '')
-if first_line.startswith('>'):
-    sequences_format = 'fasta'
-elif first_line.upper().startswith('CLUSTAL'):
-    sequences_format = 'clustal'
-else:
-    sequences_format = 'phylip-relaxed'
-
-records = list(SeqIO.parse(sequences_in, sequences_format))
 
 with open(weights_out, 'w') as fh:
     for record in records:
