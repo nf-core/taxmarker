@@ -45,6 +45,7 @@ include { TAXONOMY2PHYLOGENY      } from '../taxonomy2phylogeny/main'
 include { SATIVAEPANG_REFERENCE   } from '../../../modules/local/sativaepang/reference/main'
 include { SATIVAEPANG_LOOTASKS    } from '../../../modules/local/sativaepang/lootasks/main'
 include { SATIVAEPANG_LOOPLACE    } from '../../../modules/local/sativaepang/looplace/main'
+include { SATIVAEPANG_MERGEFOLDS  } from '../../../modules/local/sativaepang/mergefolds/main'
 include { SATIVAEPANG_LOOSCORE    } from '../../../modules/local/sativaepang/looscore/main'
 include { SATIVAEPANG_MISREPORT   } from '../../../modules/local/sativaepang/misreport/main'
 
@@ -68,6 +69,8 @@ workflow SATIVA {
                   //   Sequence IDs must match the first column of ch_taxonomy.
 
     taxcode       // value:   sativa-epang taxonomic code: bac/bot/zoo/vir
+
+    placement_jobs // value:   how many jobs the leave-one-out placement is spread over
 
     ch_ref_tree   // channel: [ val(meta), path(tree.nwk) ]
                   //   Pre-built reference tree. Pass Channel.empty() to build one.
@@ -124,7 +127,34 @@ workflow SATIVA {
 
     SATIVAEPANG_LOOTASKS(SATIVAEPANG_REFERENCE.out.refjson)
 
-    SATIVAEPANG_LOOPLACE(SATIVAEPANG_LOOTASKS.out.taskdir)
+    // Each job places its own share of the folds; shard and nshards reach the tool as
+    // -folds via conf/modules.config, since modules may not read custom meta keys.
+    def n_jobs = (placement_jobs as Integer) ?: 1
+
+    SATIVAEPANG_LOOPLACE(
+        SATIVAEPANG_LOOTASKS.out.taskdir
+            .combine(channel.of(0..<n_jobs))
+            .map { meta, taskdir, i -> [ meta + [ shard: "${i}/${n_jobs}", nshards: n_jobs ], taskdir ] }
+    )
+
+    def ch_placed = SATIVAEPANG_LOOPLACE.out.taskdir
+        .map { meta, taskdir -> [ meta - meta.subMap('shard', 'nshards'), meta.nshards, taskdir ] }
+        .branch { _meta, nshards, _taskdir ->
+            one:  nshards <= 1
+            many: nshards > 1
+        }
+
+    // groupKey releases each group as soon as its own shards arrive.
+    SATIVAEPANG_MERGEFOLDS(
+        ch_placed.many
+            .map { meta, nshards, taskdir -> [ groupKey(meta, nshards), taskdir ] }
+            .groupTuple()
+            .map { key, taskdirs -> [ key.target, taskdirs ] }
+    )
+
+    def ch_taskdir = ch_placed.one
+        .map { meta, _nshards, taskdir -> [ meta, taskdir ] }
+        .mix(SATIVAEPANG_MERGEFOLDS.out.taskdir)
 
     // ── Phase 3: Score and report ───────────────────────────────────────────────
     //
@@ -132,11 +162,11 @@ workflow SATIVA {
     // other guaranteed correlation -- join explicitly rather than relying on
     // emission order.
     SATIVAEPANG_LOOSCORE(
-        SATIVAEPANG_REFERENCE.out.refjson.join(SATIVAEPANG_LOOPLACE.out.taskdir)
+        SATIVAEPANG_REFERENCE.out.refjson.join(ch_taskdir)
     )
 
     SATIVAEPANG_MISREPORT(
-        SATIVAEPANG_LOOSCORE.out.mis.join(SATIVAEPANG_LOOPLACE.out.taskdir)
+        SATIVAEPANG_LOOSCORE.out.mis.join(ch_taskdir)
     )
 
     emit:

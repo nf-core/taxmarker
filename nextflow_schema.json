@@ -148,6 +148,14 @@
                     "description": "Taxonomic code of the input data, passed to sativa-epang: bac(teriological), bot(anical), zoo(logical) or vir(ological). Governs its nomenclature-revision suggestions.",
                     "fa_icon": "fas fa-dna"
                 },
+                "placement_jobs": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1,
+                    "description": "Number of jobs the leave-one-out placement is spread over.",
+                    "help_text": "Each job places its own share of the folds and the results are merged before scoring, so the output does not depend on this value. Raise it to use more of a cluster; 1 keeps the placement in a single job.",
+                    "fa_icon": "fas fa-layer-group"
+                },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",

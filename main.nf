@@ -53,6 +53,7 @@ workflow NFCORE_TAXMARKER {
         params.skip_profile_cover,
         params.skip_sativa,
         params.taxcode,
+        params.placement_jobs,
         params.hmm,
         params.hmm_name,
         params.multiqc_config,
