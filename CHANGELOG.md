@@ -52,7 +52,7 @@ Initial release of nf-core/taxmarker, created with the [nf-core](https://nf-co.r
 | seqkit       |                  | 2.13.0      |
 | HMMER        |                  | 3.4         |
 | RAxML-NG     |                  | 2.0.3       |
-| sativa-epang |                  | 0.10.0      |
+| sativa-epang |                  | 0.10.1      |
 | IQTREE       | 2.4.0            |             |
 | EPA-ng       | 0.3.8            |             |
 

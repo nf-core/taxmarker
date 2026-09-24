@@ -4,8 +4,8 @@ process SATIVAEPANG_LOOPLACE {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/sativa-epang:0.10.0--py314hab16a5f_0' :
-        'quay.io/biocontainers/sativa-epang:0.10.0--py314hab16a5f_0' }"
+        'https://depot.galaxyproject.org/singularity/sativa-epang:0.10.1--py314hab16a5f_0' :
+        'quay.io/biocontainers/sativa-epang:0.10.1--py314hab16a5f_0' }"
 
     input:
     tuple val(meta), path(taskdir, stageAs: "input")
