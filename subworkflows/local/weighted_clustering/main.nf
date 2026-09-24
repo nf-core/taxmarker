@@ -31,30 +31,31 @@ include { CLUSTERSELECT   } from '../../../modules/local/clusterselect/main'
 workflow WEIGHTED_CLUSTERING {
 
     take:
-    ch_taxonomy       // channel: taxonomy file (seq_name<TAB>rank1;rank2;...)
-    ch_sequences      // channel: unaligned sequences file, already normalised to FASTA by the caller
-    sequence_weights  // value:   path to a two-column weight table, or null/empty if not supplied
-    min_weight        // value:   absolute weight cutoff, or null/empty to skip it
+    ch_taxonomy         // channel: taxonomy file (seq_name<TAB>rank1;rank2;...)
+    ch_sequences        // channel: unaligned sequences file, already normalised to FASTA by the caller
+    ch_sequence_weights // channel: single item, itself a 1-element list wrapping the weight-table
+                         //          path (or [] if not supplied) -- see the .combine() below for why
+    min_weight          // value:   absolute weight cutoff, or null/empty to skip it
 
     main:
     def ch_meta_taxonomy  = ch_taxonomy.map  { [ [ id: 'user-alignment' ], it ] }
     def ch_meta_sequences = ch_sequences.map { [ [ id: 'user-alignment' ], it ] }
-
-    // sequence_weights/min_weight are plain values, known before execution starts, so
-    // it's safe to resolve/branch on them here at compose time and close over the
-    // result inside .map() below, rather than through a channel .combine() -- combine()
-    // would silently flatten an empty-list [] value into zero tuple elements instead of
-    // one (same pitfall RESOLVETAXONOMY's own optional-taxonomy handling documents).
-    def weights_file = sequence_weights ? file(sequence_weights, checkIfExists: true) : []
 
     // WEIGHTFILTER always runs -- it's also where gap characters get stripped, which
     // every sequence needs before VSEARCH_CLUSTER regardless of whether a cutoff is
     // active. -Infinity keeps a real weight >= it always, making the cutoff itself a
     // true no-op when --min_weight isn't set.
     def effective_min_weight = (min_weight != null && min_weight.toString() != '') ? min_weight : Double.NEGATIVE_INFINITY
+    // ch_sequence_weights' items are wrapped in an outer 1-element list: .combine()
+    // would otherwise splice a bare [] payload's own elements in (zero of them),
+    // desyncing this tuple's cardinality instead of giving it one empty-list slot
+    // (same pitfall RESOLVETAXONOMY's own optional-taxonomy handling documents) --
+    // confirmed empirically that combine() correctly unwraps the outer list back to
+    // the plain value (path or []) as it splices it in.
     WEIGHTFILTER(
         ch_meta_taxonomy.join(ch_meta_sequences)
-            .map { meta, tax, seq -> [ meta, tax, seq, weights_file, effective_min_weight ] }
+            .combine(ch_sequence_weights)
+            .map { meta, tax, seq, weights -> [ meta, tax, seq, weights, effective_min_weight ] }
     )
 
     // Cluster on the ungapped copy (VSEARCH needs plain sequences); CLUSTERSELECT
@@ -66,7 +67,8 @@ workflow WEIGHTED_CLUSTERING {
         WEIGHTFILTER.out.taxonomy
             .join(WEIGHTFILTER.out.sequences)
             .join(VSEARCH_CLUSTER.out.uc)
-            .map { meta, tax, seq, uc -> [ meta, tax, seq, uc, weights_file ] }
+            .combine(ch_sequence_weights)
+            .map { meta, tax, seq, uc, weights -> [ meta, tax, seq, uc, weights ] }
     )
 
     emit:

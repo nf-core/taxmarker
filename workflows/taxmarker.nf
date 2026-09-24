@@ -9,6 +9,7 @@ include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pi
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_taxmarker_pipeline'
 include { RESOLVETAXONOMY        } from '../modules/local/resolvetaxonomy/main'
+include { GTDBWEIGHTTRANSLATE    } from '../modules/local/gtdbweighttranslate/main'
 include { SEQKIT_GREP            } from '../modules/nf-core/seqkit/grep/main'
 include { CHECKNAMECONSISTENCY   } from '../modules/local/checknameconsistency/main'
 include { EMBOSS_SEQRET          } from '../modules/nf-core/emboss/seqret/main'
@@ -30,8 +31,11 @@ workflow TAXMARKER {
     take:
     ch_taxonomy        // channel: taxonomy file, or [] if not provided (derived from --sequences headers instead)
     ch_sequences       // channel: sequences file, aligned or not
-    seqgrep            // value:   keep only --sequences records whose header matches this pattern, or null/empty to skip filtering
-    skip_clustering    // value:   skip WEIGHTED_CLUSTERING entirely?
+    seqgrep              // value: keep only --sequences records whose header matches this pattern, or null/empty to skip filtering
+    upstream             // value: name of an upstream data source ('GTDB'), or null/empty for none
+    gtdb_bac120_metadata // value: path to GTDB bac120 metadata, or null/empty if not needed
+    gtdb_ar53_metadata   // value: path to GTDB ar53 metadata, or null/empty if not needed
+    skip_clustering      // value: skip WEIGHTED_CLUSTERING entirely?
     sequence_weights   // value:   path to a two-column weight table, or null/empty if not supplied
     min_weight         // value:   absolute weight cutoff, or null/empty to skip it
     skip_raxtax        // value:   skip the raxtax prefilter?
@@ -140,6 +144,39 @@ workflow TAXMARKER {
     def ch_sequences_fasta = EMBOSS_SEQRET.out.outseq.map { _meta, seq -> seq }
 
     //
+    // MODULE: GTDBWEIGHTTRANSLATE (optional, --upstream 'GTDB' to enable)
+    //
+    // Translates GTDB genome metadata into the generic --sequence_weights table
+    // WEIGHTED_CLUSTERING consumes below -- see nf-core/taxmarker#15. Runs on the
+    // pristine, pre-RESOLVETAXONOMY sequences: it needs both the GTDB accession
+    // (before CHECKNAMECONSISTENCY sanitises '~' away) and each record's own header
+    // metadata (e.g. [contig_len=...]), neither of which survive past this point.
+    //
+    // Every branch below wraps its value in a 1-element list -- see WEIGHTED_CLUSTERING's
+    // own comment on ch_sequence_weights for why: .combine() would otherwise flatten a
+    // bare [] payload's own (zero) elements in, instead of one empty-list slot.
+    def ch_sequence_weights
+    if (upstream == 'GTDB') {
+        if (!gtdb_bac120_metadata && !gtdb_ar53_metadata) {
+            error("--upstream 'GTDB' needs --gtdb_bac120_metadata and/or --gtdb_ar53_metadata.")
+        }
+        if (sequence_weights) {
+            // Same precedent as --taxonomy winning over embedded taxonomy text.
+            log.warn("Both --upstream 'GTDB' and --sequence_weights were given; the explicit --sequence_weights file wins.")
+            ch_sequence_weights = channel.value([ file(sequence_weights, checkIfExists: true) ])
+        } else {
+            GTDBWEIGHTTRANSLATE(
+                ch_sequences_for_resolve.map { [ [ id: 'user-alignment' ], it ] },
+                gtdb_bac120_metadata ? file(gtdb_bac120_metadata, checkIfExists: true) : [],
+                gtdb_ar53_metadata   ? file(gtdb_ar53_metadata, checkIfExists: true)   : []
+            )
+            ch_sequence_weights = GTDBWEIGHTTRANSLATE.out.weights.map { _meta, weights -> [ weights ] }
+        }
+    } else {
+        ch_sequence_weights = channel.value([ sequence_weights ? file(sequence_weights, checkIfExists: true) : [] ])
+    }
+
+    //
     // SUBWORKFLOW: WEIGHTED_CLUSTERING (optional, skip_clustering to disable)
     //
     // Reduce the input set to one representative per (cluster, taxon) pair before
@@ -151,7 +188,7 @@ workflow TAXMARKER {
     def ch_sequences_clustered
     def run_clustering = !skip_clustering.toString().toBoolean()
     if (run_clustering) {
-        WEIGHTED_CLUSTERING(ch_taxonomy_checked, ch_sequences_fasta, sequence_weights, min_weight)
+        WEIGHTED_CLUSTERING(ch_taxonomy_checked, ch_sequences_fasta, ch_sequence_weights, min_weight)
         ch_taxonomy_clustered  = WEIGHTED_CLUSTERING.out.taxonomy
         ch_sequences_clustered = WEIGHTED_CLUSTERING.out.sequences
     } else {

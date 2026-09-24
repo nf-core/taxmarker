@@ -24,7 +24,7 @@ nextflow_workflow {
                     '>SeqB\\n' + ('TTTTGGGGCCCCAAAA' * 3) + '\\n'
                 input[0] = Channel.of(file(tax.toString()))
                 input[1] = Channel.of(file(seq.toString()))
-                input[2] = null
+                input[2] = Channel.value([ [] ])
                 input[3] = null
                 """
             }
@@ -60,7 +60,7 @@ nextflow_workflow {
                 weights.text = 'SeqKeep\\t50\\n' + 'SeqDrop\\t-100\\n'
                 input[0] = Channel.of(file(tax.toString()))
                 input[1] = Channel.of(file(seq.toString()))
-                input[2] = weights.toString()
+                input[2] = Channel.value([ file(weights.toString()) ])
                 input[3] = 0.0
                 """
             }

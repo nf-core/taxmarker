@@ -59,10 +59,12 @@
 %%metro line: main | Main flow | #24B064
 %%metro line: unaligned | Unaligned input | #E67E22 | dashed
 %%metro line: raxtax_flagged | raxtax-flagged mislabel | #C0392B | dashed
+%%metro line: gtdb | GTDB weight translation | #8E44AD | dashed
 
 %%metro file: seq_in | FASTA | Sequences
 %%metro file: tax_in | TSV | Taxonomy (optional)
 %%metro file: hmm_in | HMM | HMM profile (optional)
+%%metro file: gtdb_metadata_in | TSV | GTDB metadata (optional)
 %%metro file: mislabels_raxtax_out | TSV | Mislabels (raxtax)
 %%metro file: mislabels_out | TSV | Mislabels
 %%metro file: ref_out | FASTA | Ranked reference FASTA (1, 5, 20 per taxon)
@@ -80,6 +82,7 @@
 %%metro process: resolvetaxonomy | RESOLVETAXONOMY
 %%metro process: checkname | CHECKNAMECONSISTENCY
 %%metro process: emboss | EMBOSS_SEQRET
+%%metro process: gtdbweight | GTDBWEIGHTTRANSLATE
 %%metro process: weightedclustering | WEIGHTED_CLUSTERING:.*
 %%metro process: checkaligned | ENSURE_ALIGNED:CHECKALIGNED
 %%metro process: hmmalign | ENSURE_ALIGNED:(HMMER_.*|GUNZIP)
@@ -105,12 +108,16 @@ graph LR
 
     subgraph align [Alignment]
         emboss[EMBOSS_SEQRET]
+        gtdb_metadata_in[ ]
+        gtdbweight[GTDBWEIGHTTRANSLATE]
         weightedclustering[WEIGHTED_CLUSTERING]
         raxtax[RAXTAX_PREFILTER]
         checkaligned[CHECKALIGNED]
         hmm_in[ ]
         hmmalign[HMMALIGN]
         mislabels_raxtax_out[ ]
+        gtdb_metadata_in -->|gtdb| gtdbweight
+        gtdbweight -->|gtdb| weightedclustering
         emboss -->|main| weightedclustering
         weightedclustering -->|main| raxtax
         raxtax -->|main| checkaligned

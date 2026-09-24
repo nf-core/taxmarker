@@ -1,0 +1,306 @@
+nextflow_process {
+
+    name "Test Process GTDBWEIGHTTRANSLATE"
+    script "../main.nf"
+    process "GTDBWEIGHTTRANSLATE"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/gtdbweighttranslate"
+
+    test("full formula -- isolate, type material, mid-range contig, no mismatch") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' +
+                    [ 'RS_GCF_000000001.1', '95', '1', '', '', 'none', 'assembly from type material',
+                      'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                      'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ].join('\\t') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000001.1~NZ_CONTIG001.1 [location=1..1000] [ssu_len=1000] [contig_len=50000]\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weight = weights.readLines().find { it.startsWith('RS_GCF_000000001.1_NZ_CONTIG001.1\t') }.split('\t')[1] as Double
+            // 10 (isolate) + 90 (95 - 5*1) + 5 (type material) + 2 (contig_len 50000 -> 20k-200k bucket) + 0 (no mismatch)
+            assertAll(
+                { assert weight == 107.0 },
+                { assert process.out.versions },
+            )
+        }
+
+    }
+
+    test("unmatched accession and non-GTDB header excluded from output") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' +
+                    [ 'RS_GCF_000000001.1', '95', '1', '', '', 'none', 'na',
+                      'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                      'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ].join('\\t') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000001.1~NZ_CONTIG001.1\\nACGT\\n' +
+                    '>RS_GCF_999999999.1~NZ_OTHER.1\\nACGT\\n' +
+                    '>PlainSeqID\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+
+            assertAll(
+                { assert weights.contains('RS_GCF_000000001.1_NZ_CONTIG001.1') },
+                { assert !weights.contains('RS_GCF_999999999.1') },
+                { assert !weights.contains('PlainSeqID') },
+                { assert weights.readLines().size() == 1 },
+            )
+        }
+
+    }
+
+    test("checkm2 missing -- falls back to checkm") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' +
+                    [ 'RS_GCF_000000002.1', '', '', '80', '2', 'none', 'na',
+                      'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                      'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ].join('\\t') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000002.1~NZ_CONTIG002.1\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weight = weights.readLines().find { it.startsWith('RS_GCF_000000002.1_NZ_CONTIG002.1\t') }.split('\t')[1] as Double
+            // 10 (isolate) + 70 (80 - 5*2) + 0 (na) + 0 (no header contig_len) + 0 (no mismatch)
+            assertAll(
+                { assert weight == 80.0 },
+            )
+        }
+
+    }
+
+    test("category and type-material term mapping -- SAG, MAG, synonym type material") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def rows = [
+                    [ 'RS_GCF_000000003.1', '', '', '', '', 'derived from single cell', 'na' ],
+                    [ 'RS_GCF_000000004.1', '', '', '', '', 'derived from metagenome', 'assembly designated as clade exemplar' ],
+                    [ 'RS_GCF_000000005.1', '', '', '', '', 'none', 'assembly from synonym type material' ],
+                ].collect { row -> row + [
+                    'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX',
+                ] }
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' + rows.collect { row -> row.join('\\t') }.join('\\n') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                def fastaText = ''
+                rows.each { row -> fastaText += '>' + row[0] + '~NZ_CONTIG.1\\nACGT\\n' }
+                seq.text = fastaText
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weightOf = { id -> weights.readLines().find { it.startsWith(id + '\t') }.split('\t')[1] as Double }
+
+            assertAll(
+                { assert weightOf('RS_GCF_000000003.1_NZ_CONTIG.1') == 5.0 },  // SAG, na
+                { assert weightOf('RS_GCF_000000004.1_NZ_CONTIG.1') == 2.0 },  // MAG, clade exemplar
+                { assert weightOf('RS_GCF_000000005.1_NZ_CONTIG.1') == 13.0 }, // isolate(10) + synonym type material(3)
+            )
+        }
+
+    }
+
+    test("recognised SILVA synonym at phylum rank -- no mismatch penalty") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                // Isolate corpus: 18/20 PhylumB isolates co-occur with SilvaPhylumB, 2/20 with
+                // the real synonym SilvaPhylumB_Synonym (10%, clears the 5% threshold).
+                def rows = []
+                (1..18).each { i -> rows << [ 'RS_GCF_1' + i.toString().padLeft(8, '0') + '.1', '', '', '', '', 'none', 'na',
+                    'd__Bacteria;p__PhylumB;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;SilvaPhylumB;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ] }
+                (1..2).each { i -> rows << [ 'RS_GCF_2' + i.toString().padLeft(8, '0') + '.1', '', '', '', '', 'none', 'na',
+                    'd__Bacteria;p__PhylumB;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;SilvaPhylumB_Synonym;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ] }
+                // Held-out MAG record (excluded from the isolate corpus above) using the
+                // synonym name -- should NOT be penalised at phylum rank.
+                rows << [ 'RS_GCF_000000099.1', '', '', '', '', 'derived from metagenome', 'na',
+                    'd__Bacteria;p__PhylumB;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;SilvaPhylumB_Synonym;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ]
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' + rows.collect { row -> row.join('\\t') }.join('\\n') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000099.1~NZ_CONTIG.1\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weight = weights.readLines().find { it.startsWith('RS_GCF_000000099.1_NZ_CONTIG.1\t') }.split('\t')[1] as Double
+            // MAG(0) + quality(0) + type_material na(0) + contig_len(0) + mismatch(0, recognised synonym)
+            assertAll(
+                { assert weight == 0.0 },
+            )
+        }
+
+    }
+
+    test("true phylum mismatch -- not in the synonym set, penalty applied") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                // Isolate corpus: PhylumC isolates consistently co-occur with SilvaPhylumC only.
+                def rows = []
+                (1..20).each { i -> rows << [ 'RS_GCF_3' + i.toString().padLeft(8, '0') + '.1', '', '', '', '', 'none', 'na',
+                    'd__Bacteria;p__PhylumC;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;SilvaPhylumC;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ] }
+                // Held-out MAG record with a phylum name that never co-occurs with PhylumC.
+                rows << [ 'RS_GCF_000000098.1', '', '', '', '', 'derived from metagenome', 'na',
+                    'd__Bacteria;p__PhylumC;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                    'Bacteria;UnrelatedContaminantPhylum;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ]
+                def metadata = File.createTempFile('test', '.bac120_metadata.tsv')
+                metadata.text = header + '\\n' + rows.collect { row -> row.join('\\t') }.join('\\n') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000098.1~NZ_CONTIG.1\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(metadata.toString())
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weight = weights.readLines().find { it.startsWith('RS_GCF_000000098.1_NZ_CONTIG.1\t') }.split('\t')[1] as Double
+            // MAG(0) + quality(0) + type_material na(0) + contig_len(0) + mismatch(-150, phylum)
+            assertAll(
+                { assert weight == -150.0 },
+            )
+        }
+
+    }
+
+    test("bac120 and ar53 metadata merged") {
+
+        when {
+            process {
+                """
+                def header = 'accession\\tcheckm2_completeness\\tcheckm2_contamination\\tcheckm_completeness\\tcheckm_contamination\\tncbi_genome_category\\tncbi_type_material_designation\\tgtdb_taxonomy\\tssu_silva_taxonomy'
+                def bac120 = File.createTempFile('test', '.bac120_metadata.tsv')
+                bac120.text = header + '\\n' +
+                    [ 'RS_GCF_000000006.1', '90', '0', '', '', 'none', 'na',
+                      'd__Bacteria;p__PhylumX;c__ClassX;o__OrderX;f__FamilyX;g__GenusX;s__GenusX speciesX',
+                      'Bacteria;PhylumX;ClassX;OrderX;FamilyX;GenusX;GenusX speciesX' ].join('\\t') + '\\n'
+                def ar53 = File.createTempFile('test', '.ar53_metadata.tsv')
+                ar53.text = header + '\\n' +
+                    [ 'GB_GCA_000000007.1', '90', '0', '', '', 'none', 'na',
+                      'd__Archaea;p__PhylumY;c__ClassY;o__OrderY;f__FamilyY;g__GenusY;s__GenusY speciesY',
+                      'Archaea;PhylumY;ClassY;OrderY;FamilyY;GenusY;GenusY speciesY' ].join('\\t') + '\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000006.1~NZ_CONTIG006.1\\nACGT\\n' +
+                    '>GB_GCA_000000007.1~NZ_CONTIG007.1\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = file(bac120.toString())
+                input[2] = file(ar53.toString())
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def weights = path(process.out.weights[0][1]).text
+            def weightOf = { id -> weights.readLines().find { it.startsWith(id + '\t') }.split('\t')[1] as Double }
+
+            assertAll(
+                { assert weightOf('RS_GCF_000000006.1_NZ_CONTIG006.1') == 100.0 },
+                { assert weightOf('GB_GCA_000000007.1_NZ_CONTIG007.1') == 100.0 },
+            )
+        }
+
+    }
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>RS_GCF_000000001.1~NZ_CONTIG001.1\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(seq.toString()) ]
+                input[1] = []
+                input[2] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}
