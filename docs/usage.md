@@ -55,7 +55,7 @@ Sequence name characters other than letters, digits, `_`, `.`, `-`, `|` and `/` 
 ## Weighted clustering
 
 Before alignment, raxtax and placement, the pipeline reduces the input to one representative sequence per (cluster, taxon) pair, collapsing near-duplicate sequences of the same taxon.
-See [Weighted clustering](usage/weighted_clustering.md) for the `--sequence_weights`/`--min_weight`/`--cluster_identity` parameters and exactly how VSEARCH decides what counts as a duplicate.
+See [Weighted clustering](usage/weighted_clustering.md) for the `--sequence_weights`/`--min_weight`/`--cluster_identity` parameters, exactly how VSEARCH decides what counts as a duplicate, and `--upstream GTDB` for computing `--sequence_weights` automatically from GTDB genome metadata.
 
 ## Running the pipeline
 

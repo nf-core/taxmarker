@@ -49,6 +49,28 @@
                     "help_text": "Passed to `seqkit grep -n -r -p`, so it's a regular expression matched against each record's whole header line (id plus any trailing text), not just the id. Useful for restricting a shared/combined reference set -- e.g. GTDB's own ssu_all distribution, which covers more than one domain in a single file -- to just the records wanted, by matching against embedded text such as `d__Archaea`.",
                     "fa_icon": "fas fa-filter"
                 },
+                "upstream": {
+                    "type": "string",
+                    "enum": ["GTDB"],
+                    "description": "Name of an upstream data source this run's --sequences/--taxonomy came from, to enable source-specific pipeline behaviour. Currently only 'GTDB' is recognised: translates --gtdb_bac120_metadata/--gtdb_ar53_metadata into --sequence_weights automatically.",
+                    "fa_icon": "fas fa-database"
+                },
+                "gtdb_bac120_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "GTDB bacterial (bac120) genome metadata table (gzip-ok). Required (with/without --gtdb_ar53_metadata) when --upstream is 'GTDB'.",
+                    "help_text": "GTDB's own per-release `bac120_metadata_*.tsv[.gz]` file, unmodified. See nf-core/taxmarker#15 for the weight formula this feeds.",
+                    "fa_icon": "fas fa-table"
+                },
+                "gtdb_ar53_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "GTDB archaeal (ar53) genome metadata table (gzip-ok). Required (with/without --gtdb_bac120_metadata) when --upstream is 'GTDB'.",
+                    "help_text": "GTDB's own per-release `ar53_metadata_*.tsv[.gz]` file, unmodified. See nf-core/taxmarker#15 for the weight formula this feeds.",
+                    "fa_icon": "fas fa-table"
+                },
                 "skip_clustering": {
                     "type": "boolean",
                     "description": "Skip WEIGHTED_CLUSTERING entirely and run every sequence straight through, unclustered.",
@@ -59,7 +81,7 @@
                     "format": "file-path",
                     "exists": true,
                     "description": "Path to a two-column table (sequence_id<TAB>weight) used to pick a representative sequence per (cluster, taxon) pair. Sequences absent from the table default to weight 1.",
-                    "help_text": "The clustering/selection logic only ever sees this generic table -- it doesn't matter where the weights came from (e.g. a GTDB-metadata-derived translation). Omit entirely to treat every sequence as weight 1, which degrades gracefully to picking the longest sequence per (cluster, taxon) pair.",
+                    "help_text": "The clustering/selection logic only ever sees this generic table -- it doesn't matter where the weights came from (e.g. a GTDB-metadata-derived translation, see --upstream). Omit entirely to treat every sequence as weight 1, which degrades gracefully to picking the longest sequence per (cluster, taxon) pair. If both this and --upstream are given, this file wins (with a warning), the same precedent as --taxonomy winning over embedded taxonomy text.",
                     "fa_icon": "fas fa-balance-scale"
                 },
                 "min_weight": {

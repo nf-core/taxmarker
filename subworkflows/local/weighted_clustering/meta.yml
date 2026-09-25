@@ -25,9 +25,12 @@ input:
       description: |
         Unaligned, labeled sequences in FASTA format (same sequences named in taxonomy)
         Structure: path(sequences)
-  - sequence_weights:
+  - ch_sequence_weights:
       type: value
-      description: Path to a two-column weight table (seq_name<TAB>weight), or null/empty if not supplied.
+      description: |
+        Single item, itself a 1-element list wrapping the path to a two-column weight
+        table (seq_name<TAB>weight), or [] if not supplied. Wrapped so .combine() doesn't
+        flatten a bare [] payload away.
   - min_weight:
       type: value
       description: Absolute weight cutoff, or null/empty to skip it.
