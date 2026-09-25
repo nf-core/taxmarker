@@ -1,16 +1,4 @@
 {
-    "default_rank": {
-        "content": [
-            "seq_name\toriginal_label\tpredicted_label\tlwr\tmismatch_rank\tmethod\nSeqSevereMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\tBacteria;PhylumB;ClassB;GenusB;SpeciesB1\t0.950000\t5\traxtax\nSeqSpeciesMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA2\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\t0.900000\t5\traxtax\n",
-            "SeqOK\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\n",
-            ">SeqOK\nGCTAAAGACAATTACATAACATACACGTCAGCACGAAACTTGTTGGCCC\n"
-        ],
-        "timestamp": "2026-08-01T10:27:29.955043953",
-        "meta": {
-            "nf-test": "0.9.5",
-            "nextflow": "26.04.6"
-        }
-    },
     "taxmarker - default rank - stub": {
         "content": [
             {
@@ -73,6 +61,18 @@
         "timestamp": "2026-08-01T10:27:48.544733515",
         "meta": {
             "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "default_rank": {
+        "content": [
+            "seq_name\toriginal_label\tpredicted_label\tlwr\tmismatch_rank\tmethod\nSeqSevereMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\tBacteria;PhylumB;ClassB;GenusB;SpeciesB1\t0.950000\t5\traxtax\n",
+            "SeqOK\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\nSeqSpeciesMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA2\n",
+            ">SeqOK\nGCTAAAGACAATTACATAACATACACGTCAGCACGAAACTTGTTGGCCC\n>SeqSpeciesMismatch\nGATGCATACGCCTTTACTTGCTGTGTCCACCCCATCGGACTGGCATTTT\n"
+        ],
+        "timestamp": "2026-09-25T11:24:53.526195353",
+        "meta": {
+            "nf-test": "0.9.4",
             "nextflow": "26.04.6"
         }
     },

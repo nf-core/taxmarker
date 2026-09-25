@@ -28,7 +28,7 @@ process RAXTAXFILTER {
         ${args} << 'PYEOF'
 import sys
 import argparse
-from collections import defaultdict
+from collections import Counter, defaultdict
 from Bio import SeqIO
 
 
@@ -78,6 +78,10 @@ opts = parser.parse_args()
 tax = load_taxonomy(opts.taxonomy)
 hits = load_raxtax(opts.raxtax_out)
 
+# --skip-exact-matches hides a query from its own classification, so a taxon with no
+# other member can never be predicted and would always look mislabelled.
+members = Counter(tuple(lineage[:i + 1]) for lineage in tax.values() for i in range(len(lineage)))
+
 flagged = {}
 for name, candidates in hits.items():
     declared = tax.get(name)
@@ -93,6 +97,8 @@ for name, candidates in hits.items():
     root_index = n_ranks - opts.filter_rank  # 0-indexed, root-counted position to check
     if root_index < 0:
         continue  # requested rank goes deeper than this lineage; nothing to check
+    if members[tuple(declared[:root_index + 1])] < 2:
+        continue
 
     if declared[root_index] != best_predicted[root_index]:
         confidence = best_conf[root_index] if root_index < len(best_conf) else best_conf[-1]

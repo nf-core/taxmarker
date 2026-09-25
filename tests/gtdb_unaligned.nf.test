@@ -92,19 +92,10 @@ nextflow_pipeline {
             assertAll(
                 { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
                 { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
-                // Regression guard for the esl-alimask/raxtax ordering bug (see
-                // CHANGELOG): with raxtax downstream of hmmalign+esl-alimask, unaligned
-                // input reached it with insert-state residues already stripped, and 15
-                // Saccharolobus islandicus + 13 S. solfataricus -- sister species only
-                // separable with the full-length sequence -- became mutually
-                // indistinguishable and got flagged (37 total). Running raxtax before
-                // alignment fixes it: 12 mislabels, none of them a spurious
-                // islandicus/solfataricus call. WEIGHTED_CLUSTERING (#15) then runs
-                // ahead of raxtax too, dereplicating near-identical marker sequences
-                // before raxtax ever sees them -- down to 9 (matches test_gtdb's aligned-path
-                // count exactly, as expected: raxtax operates on the same degapped,
-                // clustered content regardless of which ENSURE_ALIGNED branch ran).
-                { assert mislabels.readLines().size() - 1 == 9 },
+                // raxtax must see full-length sequences: masked (truncated) ones make
+                // Saccharolobus islandicus and S. solfataricus indistinguishable and
+                // inflate this count. Same count as test_gtdb's aligned path.
+                { assert mislabels.readLines().size() - 1 == 7 },
             )
         }
 

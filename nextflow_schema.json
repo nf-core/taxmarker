@@ -108,6 +108,7 @@
                     "type": "integer",
                     "default": 1,
                     "description": "Taxonomic rank at which raxtax's self-classification must agree with the declared taxonomy, counted from the most specific rank (1) upward. A sequence disagreeing at this one rank is flagged as a mislabel and skips EPA-ng placement.",
+                    "help_text": "A sequence whose taxon at this rank has no other sequence in the input is not checked: raxtax never sees the sequence itself when classifying it, so it cannot predict that taxon.",
                     "fa_icon": "fas fa-layer-group"
                 },
                 "skip_gapfilter": {

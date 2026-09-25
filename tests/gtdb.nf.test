@@ -112,15 +112,10 @@ nextflow_pipeline {
                 { assert new File("$outputDir/raxtaxformat").exists() },
                 { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
                 { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
-                // raxtax now runs before GAPFILTER, so it judges every sequence
-                // directly (including ones GAPFILTER would otherwise have quietly
-                // excluded as too short/incomplete to place): 9 mislabels without
-                // the #22 reorder, 12 with it alone. WEIGHTED_CLUSTERING (#15) then
-                // runs ahead of raxtax too, dereplicating near-identical marker
-                // sequences (e.g. 3 Pyrococcus furiosus copies collapse to 1)
-                // before raxtax ever sees them -- back down to 9, coincidentally
-                // the same count as before #22, though not the same 9 sequences.
-                { assert mislabels.readLines().size() - 1 == 9 },
+                // raxtax sees the clustered input before GAPFILTER. Single-member
+                // species (Halorutilus salinus, and Pyrococcus furiosus once dereplicated)
+                // are not judged.
+                { assert mislabels.readLines().size() - 1 == 7 },
                 // ...but the phylogenetic placement subworkflow never runs at all: no
                 // reference tree, no leave-one-out placement, no scoring. This is the
                 // whole point of --skip_sativa -- a pure taxonomy-resolution/alignment/
@@ -157,11 +152,9 @@ nextflow_pipeline {
             assertAll(
                 { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
                 { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
-                // With WEIGHTED_CLUSTERING bypassed, raxtax judges every one of the
-                // 121 raw sequences directly, duplicates included -- back to the same
-                // 12 mislabels seen right after #22's reorder, before #15 introduced
-                // clustering (see the "sativa skipped" test's comment above).
-                { assert mislabels.readLines().size() - 1 == 12 },
+                // Without clustering, raxtax judges every duplicate; only Halorutilus
+                // salinus is a single-member species.
+                { assert mislabels.readLines().size() - 1 == 11 },
             )
         }
 
