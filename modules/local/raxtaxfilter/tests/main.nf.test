@@ -36,14 +36,14 @@ nextflow_process {
                 { assert !mislabels.contains('SeqOK') },
                 { assert taxonomy.contains('SeqOK') },
                 { assert alignment.contains('>SeqOK') },
-                // SeqSpeciesMismatch: best hit (highest deepest-rank confidence, 0.90,
-                // beating the 0.10 candidate) agrees down to genus but disagrees at
-                // species -- the checked rank at the default (leaf-count 1) -- so it's
-                // flagged and dropped from the surviving taxonomy/alignment.
-                { assert mislabels.contains('SeqSpeciesMismatch') },
-                { assert !taxonomy.contains('SeqSpeciesMismatch') },
-                { assert !alignment.contains('>SeqSpeciesMismatch') },
-                // SeqSevereMismatch disagrees at every rank, so it's flagged regardless.
+                // SeqSpeciesMismatch disagrees at species, but is the only SpeciesA2
+                // sequence: raxtax can never predict a label with no other member, so
+                // the mismatch carries no evidence and it's kept.
+                { assert !mislabels.contains('SeqSpeciesMismatch') },
+                { assert taxonomy.contains('SeqSpeciesMismatch') },
+                { assert alignment.contains('>SeqSpeciesMismatch') },
+                // SeqSevereMismatch disagrees at species, and SpeciesA1 has another
+                // member (SeqOK), so it's flagged.
                 { assert mislabels.contains('SeqSevereMismatch') },
                 { assert !taxonomy.contains('SeqSevereMismatch') },
                 // method column tags these as raxtax-detected, distinct from SATIVASCORE's own rows.
