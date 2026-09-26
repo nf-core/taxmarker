@@ -216,14 +216,14 @@
                     [
                         "SATIVAEPANG_LOOPLACE",
                         "sativaepang",
-                        "0.10.0"
+                        "0.10.1"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-09-17T07:58:20.101399607",
+        "timestamp": "2026-09-24T14:14:05.318174",
         "meta": {
-            "nf-test": "0.9.4",
+            "nf-test": "0.9.5",
             "nextflow": "26.04.6"
         }
     },
@@ -444,14 +444,14 @@
                     [
                         "SATIVAEPANG_LOOPLACE",
                         "sativaepang",
-                        "0.10.0"
+                        "0.10.1"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-09-17T07:58:31.65977566",
+        "timestamp": "2026-09-24T14:14:17.297344",
         "meta": {
-            "nf-test": "0.9.4",
+            "nf-test": "0.9.5",
             "nextflow": "26.04.6"
         }
     },
@@ -475,14 +475,14 @@
                     [
                         "SATIVAEPANG_LOOPLACE",
                         "sativaepang",
-                        "0.10.0"
+                        "0.10.1"
                     ]
                 ]
             }
         ],
-        "timestamp": "2026-09-17T07:58:40.450518129",
+        "timestamp": "2026-09-24T14:14:23.883515",
         "meta": {
-            "nf-test": "0.9.4",
+            "nf-test": "0.9.5",
             "nextflow": "26.04.6"
         }
     }

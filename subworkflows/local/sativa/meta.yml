@@ -1,0 +1,90 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "sativa"
+description: |
+  Flag taxonomically mislabelled sequences by evolutionary placement: build a
+  taxonomy-constrained reference phylogeny (taxonomy2phylogeny), hand it to
+  sativa-epang as an externally built tree, then run its staged leave-one-out
+  (reference, lootasks, looplace, looscore) and report the result in the
+  pipeline's own schema (misreport). The placement can be spread over several
+  jobs, whose results are merged before scoring.
+keywords:
+  - phylogenetics
+  - taxonomy
+  - mislabelling
+  - evolutionary placement
+  - leave-one-out
+components:
+  - taxonomy2phylogeny
+  - sativaepang/reference
+  - sativaepang/lootasks
+  - sativaepang/looplace
+  - sativaepang/mergefolds
+  - sativaepang/looscore
+  - sativaepang/misreport
+input:
+  - ch_taxonomy:
+      type: file
+      description: |
+        Reference taxonomy, one sequence per line, naming the same sequences as
+        ch_alignment.
+        Structure: [ val(meta), path(taxonomy) ]
+      pattern: "*.{tsv,tax,txt}"
+  - ch_alignment:
+      type: file
+      description: |
+        Aligned, labelled sequences in FASTA, already normalised by the caller.
+        Structure: [ val(meta), path(alignment) ]
+      pattern: "*.{fa,fasta,fna,mfa}"
+  - taxcode:
+      type: string
+      description: |
+        sativa-epang taxonomic code governing its nomenclature suggestions:
+        bac, bot, zoo or vir.
+  - folds_per_job:
+      type: integer
+      description: |
+        How many leave-one-out folds each placement job places; null or empty puts
+        them all in one job. The job count follows from the fold count, and the
+        results are merged before scoring, so the output does not depend on it.
+  - ch_ref_tree:
+      type: file
+      description: |
+        Pre-built reference tree. Not yet honoured; pass an empty list.
+        Structure: [ val(meta), path(tree) ]
+      pattern: "*.{nwk,newick}"
+  - ch_ref_model:
+      type: file
+      description: |
+        RAxML-NG model matching ch_ref_tree. Not yet honoured; pass an empty list.
+        Structure: [ val(meta), path(model) ]
+      pattern: "*.{txt,bestModel}"
+output:
+  - mislabels:
+      type: file
+      description: |
+        Putative mislabels, ranked.
+        Structure: [ val(meta), path(tsv) ]
+      pattern: "*.mislabels.tsv"
+  - summary:
+      type: file
+      description: |
+        Run statistics: sequences scored, threshold, putative mislabels.
+        Structure: [ val(meta), path(txt) ]
+      pattern: "*.summary.txt"
+  - tree:
+      type: file
+      description: |
+        The reference phylogeny built for the placement, for reuse.
+        Structure: [ val(meta), path(tree) ]
+      pattern: "*.raxml.bestTree"
+  - model:
+      type: file
+      description: |
+        RAxML-NG model matching tree, for reuse.
+        Structure: [ val(meta), path(model) ]
+      pattern: "*.raxml.bestModel"
+authors:
+  - "@erikrikarddaniel"
+  - "@Aaramis"
+maintainers:
+  - "@erikrikarddaniel"

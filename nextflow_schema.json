@@ -148,6 +148,13 @@
                     "description": "Taxonomic code of the input data, passed to sativa-epang: bac(teriological), bot(anical), zoo(logical) or vir(ological). Governs its nomenclature-revision suggestions.",
                     "fa_icon": "fas fa-dna"
                 },
+                "folds_per_job": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of leave-one-out folds each placement job places. Unset places them all in one job.",
+                    "help_text": "The number of jobs follows from this and the fold count, so no job is ever handed an empty range. Results are merged before scoring and do not depend on this value, so it is purely a way to trade more, smaller jobs for fewer, longer ones: wall time per job scales with the folds it places, and peak memory with how many run at once.",
+                    "fa_icon": "fas fa-layer-group"
+                },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",

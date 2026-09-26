@@ -45,6 +45,7 @@ include { TAXONOMY2PHYLOGENY      } from '../taxonomy2phylogeny/main'
 include { SATIVAEPANG_REFERENCE   } from '../../../modules/local/sativaepang/reference/main'
 include { SATIVAEPANG_LOOTASKS    } from '../../../modules/local/sativaepang/lootasks/main'
 include { SATIVAEPANG_LOOPLACE    } from '../../../modules/local/sativaepang/looplace/main'
+include { SATIVAEPANG_MERGEFOLDS  } from '../../../modules/local/sativaepang/mergefolds/main'
 include { SATIVAEPANG_LOOSCORE    } from '../../../modules/local/sativaepang/looscore/main'
 include { SATIVAEPANG_MISREPORT   } from '../../../modules/local/sativaepang/misreport/main'
 
@@ -68,6 +69,8 @@ workflow SATIVA {
                   //   Sequence IDs must match the first column of ch_taxonomy.
 
     taxcode       // value:   sativa-epang taxonomic code: bac/bot/zoo/vir
+
+    folds_per_job // value:   folds each leave-one-out placement job places, or null for all in one
 
     ch_ref_tree   // channel: [ val(meta), path(tree.nwk) ]
                   //   Pre-built reference tree. Pass Channel.empty() to build one.
@@ -124,7 +127,50 @@ workflow SATIVA {
 
     SATIVAEPANG_LOOTASKS(SATIVAEPANG_REFERENCE.out.refjson)
 
-    SATIVAEPANG_LOOPLACE(SATIVAEPANG_LOOTASKS.out.taskdir)
+    // One job per folds_per_job folds, sliced from the fold count lootasks actually
+    // wrote into its manifest: deriving the job count from the work means no job is
+    // ever handed an empty range. shard and nshards reach the tool as -folds via
+    // conf/modules.config, since modules may not read custom meta keys.
+    def per_job = (folds_per_job as Integer) ?: 0
+
+    SATIVAEPANG_LOOPLACE(
+        SATIVAEPANG_LOOTASKS.out.taskdir
+            .flatMap { meta, taskdir ->
+                // 0 when the manifest is unreadable, which is what a stub run writes:
+                // that falls through to one job below, same as not asking for a split.
+                def manifest = taskdir.resolve('manifest.json')
+                def n_folds = (manifest.exists() && manifest.size() > 0
+                    ? new groovy.json.JsonSlurper().parseText(manifest.text).n_folds ?: 0
+                    : 0) as Integer
+                def n_shards = per_job > 0 && n_folds > per_job
+                    ? (n_folds + per_job - 1).intdiv(per_job)
+                    : 1
+                // shard is only read at more than one job, so it stays empty below that.
+                (0..<n_shards).collect { i ->
+                    def shard = n_shards > 1 ? "${i * per_job}-${Math.min((i + 1) * per_job, n_folds) - 1}" : ''
+                    [ meta + [ shard: shard, nshards: n_shards ], taskdir ]
+                }
+            }
+    )
+
+    def ch_placed = SATIVAEPANG_LOOPLACE.out.taskdir
+        .map { meta, taskdir -> [ meta - meta.subMap('shard', 'nshards'), meta.nshards, taskdir ] }
+        .branch { _meta, nshards, _taskdir ->
+            one:  nshards <= 1
+            many: nshards > 1
+        }
+
+    // groupKey releases each group as soon as its own shards arrive.
+    SATIVAEPANG_MERGEFOLDS(
+        ch_placed.many
+            .map { meta, nshards, taskdir -> [ groupKey(meta, nshards), taskdir ] }
+            .groupTuple()
+            .map { key, taskdirs -> [ key.target, taskdirs ] }
+    )
+
+    def ch_taskdir = ch_placed.one
+        .map { meta, _nshards, taskdir -> [ meta, taskdir ] }
+        .mix(SATIVAEPANG_MERGEFOLDS.out.taskdir)
 
     // ── Phase 3: Score and report ───────────────────────────────────────────────
     //
@@ -132,11 +178,11 @@ workflow SATIVA {
     // other guaranteed correlation -- join explicitly rather than relying on
     // emission order.
     SATIVAEPANG_LOOSCORE(
-        SATIVAEPANG_REFERENCE.out.refjson.join(SATIVAEPANG_LOOPLACE.out.taskdir)
+        SATIVAEPANG_REFERENCE.out.refjson.join(ch_taskdir)
     )
 
     SATIVAEPANG_MISREPORT(
-        SATIVAEPANG_LOOSCORE.out.mis.join(SATIVAEPANG_LOOPLACE.out.taskdir)
+        SATIVAEPANG_LOOSCORE.out.mis.join(ch_taskdir)
     )
 
     emit:

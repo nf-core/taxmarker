@@ -1,0 +1,68 @@
+name: "sativaepang_mergefolds"
+description: Union several partially placed leave-one-out taskdirs back into one, so scoring sees every fold regardless of how many jobs placed them
+keywords:
+  - phylogenetics
+  - taxonomy
+  - mislabelling
+  - placement
+  - leave-one-out
+tools:
+  - "sativaepang":
+      description: "SATIVA with EPA-ng as the placement engine"
+      homepage: "https://github.com/Aaramis/sativa-epang"
+      documentation: "https://github.com/Aaramis/sativa-epang/blob/main/CHANGES-epa-ng.md"
+      tool_dev_url: "https://github.com/Aaramis/sativa-epang"
+      doi: "10.1093/nar/gkw396"
+      licence:
+        - "GPL-3.0-or-later"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+    - taskdirs:
+        type: directory
+        description: |
+          Two or more `*.l1o_tasks` directories from `sativaepang/looplace`, each
+          holding the folds that one job was given via `-folds`. Every fold appears
+          placed in exactly one of them, so the union is the whole set.
+        pattern: "*.l1o_tasks"
+output:
+  taskdir:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.l1o_tasks":
+          type: directory
+          description: |
+            One taskdir holding every fold from every input, with the `manifest.json`
+            they share. Input to `sativaepang/looscore`, which cannot tell it apart
+            from a taskdir placed by a single job.
+          pattern: "*.l1o_tasks"
+  versions_sativaepang:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - sativaepang:
+          type: string
+          description: The name of the tool
+      - sativa-epang --version | cut -d' ' -f2:
+          type: eval
+          description: The expression to obtain the version of the tool
+
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - sativaepang:
+          type: string
+          description: The name of the tool
+      - sativa-epang --version | cut -d' ' -f2:
+          type: eval
+          description: The expression to obtain the version of the tool
+
+authors:
+  - "@Aaramis"
+maintainers:
+  - "@Aaramis"

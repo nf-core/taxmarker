@@ -9,6 +9,7 @@ Initial release of nf-core/taxmarker, created with the [nf-core](https://nf-co.r
 
 ### `Added`
 
+- [#27](https://github.com/nf-core/taxmarker/pull/27) - `--folds_per_job` spreads the leave-one-out placement over several jobs, each placing that many folds through `sativa-epang`'s own `-folds` (unset by default, placing them all in one job as before). The job count follows from the fold count, so no job is handed an empty range, and a new local `sativaepang/mergefolds` module gathers the results before scoring, so they do not depend on how the folds were split
 - [#24](https://github.com/nf-core/taxmarker/pull/24) - New `--upstream GTDB` (with `--gtdb_bac120_metadata`/`--gtdb_ar53_metadata`) computes `--sequence_weights` automatically from GTDB genome metadata: genome category (isolate/SAG/MAG), CheckM(2) quality score, NCBI type-material status, this sequence's own 16S-copy contig length, and a penalty for genomes whose declared GTDB taxonomy disagrees with an independent SILVA classification of their own extracted 16S (synonym-normalised, so GTDB/SILVA nomenclature drift like `Desulfobacterota`/`Thermodesulfobacteriota` isn't double-counted as contamination). New `GTDBWEIGHTTRANSLATE` module. See [nf-core/taxmarker#15](https://github.com/nf-core/taxmarker/issues/15) for the full design and calibration
 - [#23](https://github.com/nf-core/taxmarker/pull/23) - New `WEIGHTED_CLUSTERING` subworkflow reduces the input to one representative per (cluster, taxon) pair before raxtax/alignment/placement all see it (disable entirely with `--skip_clustering`): an optional absolute `--min_weight` cutoff (no-op unless both it and `--sequence_weights` are set), then VSEARCH clustering (`--cluster_identity`, default `1.0` -- a safe no-op pure dereplication), then per-cluster/per-taxon selection by `(length fraction) x weight`. `--sequence_weights` is a generic two-column table (`sequence_id<TAB>weight`); sequences absent from it default to weight 1, degrading gracefully to "pick the longest sequence per taxon" with no table supplied at all. See [nf-core/taxmarker#15](https://github.com/nf-core/taxmarker/issues/15) for the design and a GTDB-metadata-derived weight-translation recipe
 - [#20](https://github.com/nf-core/taxmarker/pull/20) - New `--seqgrep` parameter (backed by the official `seqkit/grep` module) to keep only `--sequences` records matching a pattern before anything else runs, e.g. to restrict a shared/combined reference set to one taxon (used by the `test_full` profile against GTDB's own multi-domain `ssu_all` distribution) (@erikrikarddaniel)
@@ -51,7 +52,7 @@ Initial release of nf-core/taxmarker, created with the [nf-core](https://nf-co.r
 | seqkit       |                  | 2.13.0      |
 | HMMER        |                  | 3.4         |
 | RAxML-NG     |                  | 2.0.3       |
-| sativa-epang |                  | 0.10.0      |
+| sativa-epang |                  | 0.10.1      |
 | IQTREE       | 2.4.0            |             |
 | EPA-ng       | 0.3.8            |             |
 

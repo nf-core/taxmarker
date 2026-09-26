@@ -26,19 +26,19 @@
                     "python": "3.12.12"
                 },
                 "SATIVAEPANG_LOOPLACE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_LOOSCORE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_LOOTASKS": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_MISREPORT": {
                     "python": "3.11.10"
                 },
                 "SATIVAEPANG_REFERENCE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "TAXONOMYTREE": {
                     "python": "3.11.10"

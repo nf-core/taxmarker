@@ -1,4 +1,26 @@
 {
+    "one_job": {
+        "content": [
+            "user-alignment.mislabels.tsv:md5,a14d8978f3bee72c8c9a10195cd06f07",
+            "user-alignment.summary.txt:md5,ac13396bae7956ddbb0e24acee54c836"
+        ],
+        "timestamp": "2026-09-26T17:21:06.885727",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "folds_split": {
+        "content": [
+            "user-alignment.mislabels.tsv:md5,a14d8978f3bee72c8c9a10195cd06f07",
+            "user-alignment.summary.txt:md5,ac13396bae7956ddbb0e24acee54c836"
+        ],
+        "timestamp": "2026-09-26T17:21:51.370661",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
     "-profile test": {
         "content": [
             {
@@ -23,19 +45,19 @@
                     "python": "3.12.12"
                 },
                 "SATIVAEPANG_LOOPLACE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_LOOSCORE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_LOOTASKS": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "SATIVAEPANG_MISREPORT": {
                     "python": "3.11.10"
                 },
                 "SATIVAEPANG_REFERENCE": {
-                    "sativaepang": "0.10.0"
+                    "sativaepang": "0.10.1"
                 },
                 "TAXONOMYTREE": {
                     "python": "3.11.10"
@@ -492,6 +514,17 @@
         "timestamp": "2026-09-22T11:32:48.104462987",
         "meta": {
             "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    },
+    "placement_outputs": {
+        "content": [
+            "user-alignment.mislabels.tsv:md5,a14d8978f3bee72c8c9a10195cd06f07",
+            "user-alignment.summary.txt:md5,ac13396bae7956ddbb0e24acee54c836"
+        ],
+        "timestamp": "2026-09-26T17:15:35.711421",
+        "meta": {
+            "nf-test": "0.9.5",
             "nextflow": "26.04.6"
         }
     }

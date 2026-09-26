@@ -1,0 +1,128 @@
+nextflow_process {
+
+    name "Test Process SATIVAEPANG_MERGEFOLDS"
+    script "../main.nf"
+    process "SATIVAEPANG_MERGEFOLDS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "sativaepang"
+    tag "sativaepang/mergefolds"
+
+    test("three folds over two shards") {
+
+        when {
+            process {
+                """
+                // Shards as looplace leaves them: every shard carries every fold's own
+                // inputs, and only the folds it was given a -folds range for carry a
+                // jplace. So each fold is linked from every shard and the jplace has to
+                // survive the shards that didn't place it.
+                def shards = [ [ 'fold_000', 'fold_002' ], [ 'fold_001' ] ].withIndex().collect { placed, i ->
+                    def dir = java.nio.file.Files.createTempDirectory("shard\${i}").resolve('test.l1o_tasks')
+                    dir.toFile().mkdirs()
+                    dir.resolve('manifest.json').toFile().text = '{"n_folds": 3}'
+                    [ 'fold_000', 'fold_001', 'fold_002' ].each { fold ->
+                        dir.resolve(fold).toFile().mkdirs()
+                        dir.resolve("\${fold}/ref.nwk").toFile().text = "tree for \${fold}"
+                        if (fold in placed) {
+                            dir.resolve("\${fold}/epa_result.jplace").toFile().text = "\${fold} placed by shard\${i}"
+                        }
+                    }
+                    dir
+                }
+                input[0] = [ [ id:'test' ], shards ]
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            def foldDirs = taskdir.listFiles().findAll { it.isDirectory() }
+            assert process.success
+            assertAll(
+                { assert foldDirs.collect { it.name }.sort() == [ 'fold_000', 'fold_001', 'fold_002' ] },
+                { assert foldDirs.every { new File(it.toString(), "epa_result.jplace").exists() } },
+                { assert foldDirs.every { new File(it.toString(), "ref.nwk").exists() } },
+                { assert new File(taskdir.toString(), 'manifest.json').exists() },
+                // Each jplace names the shard that placed it: the shards that only had
+                // the fold's inputs must not have replaced it.
+                { assert new File(taskdir.toString(), 'fold_000/epa_result.jplace').text == 'fold_000 placed by shard0' },
+                { assert new File(taskdir.toString(), 'fold_001/epa_result.jplace').text == 'fold_001 placed by shard1' },
+                { assert new File(taskdir.toString(), 'fold_002/epa_result.jplace').text == 'fold_002 placed by shard0' },
+            )
+        }
+    }
+
+    test("shard order does not matter") {
+
+        when {
+            process {
+                """
+                // Same shards handed over in the opposite order. Since every shard holds
+                // every fold, the jplace for fold_001 is now linked before the shard that
+                // lacks it is processed -- ln -sf has to leave it alone either way.
+                def shards = [ [ 'fold_001' ], [ 'fold_000', 'fold_002' ] ].withIndex().collect { placed, i ->
+                    def dir = java.nio.file.Files.createTempDirectory("rev\${i}").resolve('test.l1o_tasks')
+                    dir.toFile().mkdirs()
+                    dir.resolve('manifest.json').toFile().text = '{"n_folds": 3}'
+                    [ 'fold_000', 'fold_001', 'fold_002' ].each { fold ->
+                        dir.resolve(fold).toFile().mkdirs()
+                        dir.resolve("\${fold}/ref.nwk").toFile().text = "tree for \${fold}"
+                        if (fold in placed) {
+                            dir.resolve("\${fold}/epa_result.jplace").toFile().text = "\${fold} placed by rev\${i}"
+                        }
+                    }
+                    dir
+                }
+                input[0] = [ [ id:'test' ], shards ]
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            def foldDirs = taskdir.listFiles().findAll { it.isDirectory() }
+            assert process.success
+            assertAll(
+                { assert foldDirs.collect { it.name }.sort() == [ 'fold_000', 'fold_001', 'fold_002' ] },
+                { assert foldDirs.every { new File(it.toString(), "epa_result.jplace").exists() } },
+                { assert new File(taskdir.toString(), 'fold_001/epa_result.jplace').text == 'fold_001 placed by rev0' },
+                { assert new File(taskdir.toString(), 'fold_000/epa_result.jplace').text == 'fold_000 placed by rev1' },
+            )
+        }
+    }
+
+    test("three folds over two shards - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def shards = [ [ 'fold_000' ], [ 'fold_001' ] ].withIndex().collect { placed, i ->
+                    def dir = java.nio.file.Files.createTempDirectory("stub\${i}").resolve('test.l1o_tasks')
+                    dir.toFile().mkdirs()
+                    dir.resolve('manifest.json').toFile().text = '{"n_folds": 2}'
+                    [ 'fold_000', 'fold_001' ].each { fold ->
+                        dir.resolve(fold).toFile().mkdirs()
+                        dir.resolve("\${fold}/ref.nwk").toFile().text = ''
+                        if (fold in placed) {
+                            dir.resolve("\${fold}/epa_result.jplace").toFile().text = ''
+                        }
+                    }
+                    dir
+                }
+                input[0] = [ [ id:'test' ], shards ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+    }
+}
