@@ -139,13 +139,16 @@ workflow SATIVA {
                 // 0 when the manifest is unreadable, which is what a stub run writes:
                 // that falls through to one job below, same as not asking for a split.
                 def manifest = taskdir.resolve('manifest.json')
-                def n_folds = (manifest.size() > 0 ? new groovy.json.JsonSlurper()
-                    .parseText(manifest.text).n_folds ?: 0 : 0) as Integer
+                def n_folds = (manifest.exists() && manifest.size() > 0
+                    ? new groovy.json.JsonSlurper().parseText(manifest.text).n_folds ?: 0
+                    : 0) as Integer
                 def n_shards = per_job > 0 && n_folds > per_job
                     ? (n_folds + per_job - 1).intdiv(per_job)
                     : 1
+                // shard is only read at more than one job, so it stays empty below that.
                 (0..<n_shards).collect { i ->
-                    [ meta + [ shard: "${i * per_job}-${Math.min((i + 1) * per_job, n_folds) - 1}", nshards: n_shards ], taskdir ]
+                    def shard = n_shards > 1 ? "${i * per_job}-${Math.min((i + 1) * per_job, n_folds) - 1}" : ''
+                    [ meta + [ shard: shard, nshards: n_shards ], taskdir ]
                 }
             }
     )
