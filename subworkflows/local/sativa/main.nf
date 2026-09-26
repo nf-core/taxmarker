@@ -70,7 +70,7 @@ workflow SATIVA {
 
     taxcode       // value:   sativa-epang taxonomic code: bac/bot/zoo/vir
 
-    placement_jobs // value:   how many jobs the leave-one-out placement is spread over
+    folds_per_job // value:   folds each leave-one-out placement job places, or null for all in one
 
     ch_ref_tree   // channel: [ val(meta), path(tree.nwk) ]
                   //   Pre-built reference tree. Pass Channel.empty() to build one.
@@ -127,14 +127,27 @@ workflow SATIVA {
 
     SATIVAEPANG_LOOTASKS(SATIVAEPANG_REFERENCE.out.refjson)
 
-    // Each job places its own share of the folds; shard and nshards reach the tool as
-    // -folds via conf/modules.config, since modules may not read custom meta keys.
-    def n_jobs = (placement_jobs as Integer) ?: 1
+    // One job per folds_per_job folds, sliced from the fold count lootasks actually
+    // wrote into its manifest: deriving the job count from the work means no job is
+    // ever handed an empty range. shard and nshards reach the tool as -folds via
+    // conf/modules.config, since modules may not read custom meta keys.
+    def per_job = (folds_per_job as Integer) ?: 0
 
     SATIVAEPANG_LOOPLACE(
         SATIVAEPANG_LOOTASKS.out.taskdir
-            .combine(channel.of(0..<n_jobs))
-            .map { meta, taskdir, i -> [ meta + [ shard: "${i}/${n_jobs}", nshards: n_jobs ], taskdir ] }
+            .flatMap { meta, taskdir ->
+                // 0 when the manifest is unreadable, which is what a stub run writes:
+                // that falls through to one job below, same as not asking for a split.
+                def manifest = taskdir.resolve('manifest.json')
+                def n_folds = (manifest.size() > 0 ? new groovy.json.JsonSlurper()
+                    .parseText(manifest.text).n_folds ?: 0 : 0) as Integer
+                def n_shards = per_job > 0 && n_folds > per_job
+                    ? (n_folds + per_job - 1).intdiv(per_job)
+                    : 1
+                (0..<n_shards).collect { i ->
+                    [ meta + [ shard: "${i * per_job}-${Math.min((i + 1) * per_job, n_folds) - 1}", nshards: n_shards ], taskdir ]
+                }
+            }
     )
 
     def ch_placed = SATIVAEPANG_LOOPLACE.out.taskdir

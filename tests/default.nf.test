@@ -30,4 +30,56 @@ nextflow_pipeline {
             )
         }
     }
+
+    // The two tests below are the same run with the folds split differently, so their
+    // mislabels/summary snapshots must be byte-identical. Clustering is skipped in both:
+    // it isn't what's under test here, and leaving it out keeps them quick.
+    test("-profile test, all folds in one job") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                { assert !new File("$outputDir/sativaepang/mergefolds").exists() },
+                { assert snapshot(
+                    file("$outputDir/mislabels/user-alignment.mislabels.tsv"),
+                    file("$outputDir/sativaepang/user-alignment.summary.txt")
+                ).match("one_job") }
+            )
+        }
+    }
+
+    test("-profile test, folds split over several jobs") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                folds_per_job   = 10
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                // Above one job the merge runs and the shards are not published,
+                // see conf/modules.config.
+                { assert new File("$outputDir/sativaepang/mergefolds").exists() },
+                // Nextflow still creates the publish directory, but nothing lands in it.
+                { assert !new File("$outputDir/sativaepang/looplace/user-alignment.l1o_tasks").exists() },
+                // These two md5s must equal the one_job snapshot above: splitting the
+                // folds cannot change a byte of what comes out.
+                { assert snapshot(
+                    file("$outputDir/mislabels/user-alignment.mislabels.tsv"),
+                    file("$outputDir/sativaepang/user-alignment.summary.txt")
+                ).match("folds_split") }
+            )
+        }
+    }
 }

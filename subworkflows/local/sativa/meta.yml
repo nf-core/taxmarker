@@ -40,12 +40,12 @@ input:
       description: |
         sativa-epang taxonomic code governing its nomenclature suggestions:
         bac, bot, zoo or vir.
-  - placement_jobs:
+  - folds_per_job:
       type: integer
       description: |
-        How many jobs the leave-one-out placement is spread over. Each job places
-        its own share of the folds and the results are merged before scoring, so
-        the output does not depend on this value.
+        How many leave-one-out folds each placement job places; null or empty puts
+        them all in one job. The job count follows from the fold count, and the
+        results are merged before scoring, so the output does not depend on it.
   - ch_ref_tree:
       type: file
       description: |
