@@ -162,6 +162,144 @@ nextflow_process {
 
     }
 
+    test("taxmarker - trailing empty and placeholder ranks are dropped, interior ones kept") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_partial', '.tax')
+                tax.text = [
+                    'Full\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full',
+                    'Placeholder\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__',
+                    'Genus\\td__A;p__B;c__C;o__O;f__F;g__;s__',
+                    'Empty\\tBacteria;PhylumA;ClassA;;',
+                    'Spaces\\tBacteria;PhylumA; ;  ',
+                    'Interior\\td__A;p__B;c__;o__O;f__F;g__;s__',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_partial', '.fasta')
+                fasta.text = ['Full', 'Placeholder', 'Genus', 'Empty', 'Spaces', 'Interior'].collect { ">\${it}\\nACGT\\n" }.join()
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('Full\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full') },
+                { assert lines.contains('Placeholder\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('Genus\td__A;p__B;c__C;o__O;f__F') },
+                { assert lines.contains('Empty\tBacteria;PhylumA;ClassA') },
+                { assert lines.contains('Spaces\tBacteria;PhylumA') },
+                { assert lines.contains('Interior\td__A;p__B;c__;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy drops trailing empty and placeholder ranks") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_embedded_partial', '.fasta')
+                fasta.text = [
+                    '>Full d__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full [locus_tag=abc]',
+                    '>Placeholder d__A;p__B;c__C;o__O;f__F;g__Gx;s__',
+                    '>Genus d__A;p__B;c__C;o__O;f__F;g__;s__',
+                    '>Interior d__A;p__B;c__;o__O;f__F;g__;s__',
+                ].collect { it + '\\nACGT\\n' }.join()
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('Full\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full') },
+                { assert lines.contains('Placeholder\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('Genus\td__A;p__B;c__C;o__O;f__F') },
+                { assert lines.contains('Interior\td__A;p__B;c__;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - sequences without any annotation are dropped from taxonomy and sequences, with a warning") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_unannotated', '.tax')
+                tax.text = [
+                    'Named\\td__A;p__B;c__C',
+                    'Blank\\t;;;;;;',
+                    'Placeholders\\td__;p__;c__;o__;f__;g__;s__',
+                    'NoLineage\\t',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_unannotated', '.fasta')
+                fasta.text = ['Named', 'Blank', 'Placeholders', 'NoLineage'].collect { ">\${it}\\nACGT\\n" }.join()
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).readLines()
+            def ids = path(process.out.sequences[0][1]).readLines().findAll { it.startsWith('>') }
+            def warnings = path(process.out.warnings[0][1]).text
+
+            assertAll(
+                { assert taxonomy == ['Named\td__A;p__B;c__C'] },
+                { assert ids == ['>Named'] },
+                { assert warnings.contains('Blank') && warnings.contains('Placeholders') && warnings.contains('NoLineage') },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy - sequences without any annotation are dropped") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_unannotated_embedded', '.fasta')
+                fasta.text = [
+                    '>Named d__A;p__B;c__C [locus_tag=abc]\\nACGT\\n',
+                    '>Placeholders d__;p__;c__;o__;f__;g__;s__ [locus_tag=def]\\nACGT\\n',
+                    '>Blank ;;;;;; [locus_tag=ghi]\\nACGT\\n',
+                    '>Fine d__A;p__B;c__D\\nACGT\\n',
+                ].join()
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).readLines()
+            def ids = path(process.out.sequences[0][1]).readLines().findAll { it.startsWith('>') }
+            def warnings = path(process.out.warnings[0][1]).text
+
+            assertAll(
+                { assert taxonomy == ['Named\td__A;p__B;c__C', 'Fine\td__A;p__B;c__D'] },
+                { assert ids == ['>Named', '>Fine'] },
+                { assert warnings.contains('Placeholders') && warnings.contains('Blank') },
+            )
+        }
+
+    }
+
     test("taxmarker - neither taxonomy file nor embedded text fails clearly") {
 
         when {

@@ -34,6 +34,11 @@ UpbRectu        Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae;Clos
 
 Sequence names in the taxonomy file must match those in `--sequences` (after the sanitisation described below).
 
+Lineages may stop at any rank.
+Trailing empty ranks and bare placeholders such as `g__` or `s__` are removed, so a sequence annotated only to genus ends at the genus.
+Empty ranks inside a lineage are kept.
+Sequences without any annotation, such as a lineage of only `;;;;;;`, are dropped from both the taxonomy and the sequences, with a warning, since they cannot be checked.
+
 ### Taxonomy embedded in sequence headers
 
 If `--taxonomy` is omitted, taxonomy is instead derived from each `--sequences` FASTA record's own header, following [GTDB](https://gtdb.ecogenomic.org/)'s own single-file convention: the taxonomy string directly after the sequence id, space-separated.
