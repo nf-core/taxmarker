@@ -62,6 +62,17 @@ See [Weighted clustering](usage/weighted_clustering.md) for the `--sequence_weig
 Unaligned input is aligned to an HMM profile, and sequences covering too little of it are dropped, except the best one of any taxon that would otherwise be lost.
 See [Profile coverage and fragment rescue](usage/profile_coverage.md) for the `--min_profile_cover`/`--min_profile_cover_rescue` parameters and how well fragments place.
 
+## Reference tree model
+
+The reference tree is built with RAxML-NG under a topology constraint from the taxonomy.
+By default RAxML-NG first selects a substitution model, which can take a quarter or more of the tree building time on large alignments.
+Pass a model with `--raxmlng_model`, for example `--raxmlng_model GTR+G4`, to skip the selection.
+Any model string that RAxML-NG accepts for `--model` works.
+
+On large alignments the search itself dominates the run time.
+`--raxmlng_fast` switches to the RAxML-NG fast search: one parsimony starting tree and a simplified topology search that stops early.
+The constraint still applies, and the tree is somewhat less optimal than the default search gives.
+
 ## Reference export
 
 `--export_n_per_species` takes a comma-separated list of numbers, e.g. `1,5,20`, and writes three gzipped FASTA files to `export/` for each:

@@ -40,6 +40,11 @@ input:
       description: |
         sativa-epang taxonomic code governing its nomenclature suggestions:
         bac, bot, zoo or vir.
+  - raxmlng_model:
+      type: string
+      description: |
+        RAxML-NG model for the reference tree, for example GTR+G4. DNA runs
+        model selection first.
   - folds_per_job:
       type: integer
       description: |

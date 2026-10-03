@@ -82,4 +82,45 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("-profile test, fixed raxmlng model skips model selection") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_model   = "GTR+G4"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("--model GTR+G4") },
+                { assert !log.contains("Model selection") },
+                { assert !log.contains("simplified") },
+            )
+        }
+    }
+
+    test("-profile test, raxmlng fast search") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_fast    = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("ML tree search (simplified)") },
+                { assert log.contains("Model selection") },
+            )
+        }
+    }
 }

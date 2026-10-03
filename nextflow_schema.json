@@ -173,6 +173,19 @@
                     "description": "Taxonomic code of the input data, passed to sativa-epang: bac(teriological), bot(anical), zoo(logical) or vir(ological). Governs its nomenclature-revision suggestions.",
                     "fa_icon": "fas fa-dna"
                 },
+                "raxmlng_model": {
+                    "type": "string",
+                    "default": "DNA",
+                    "description": "RAxML-NG model for the reference tree, for example GTR+G4. The default DNA runs model selection first.",
+                    "help_text": "Any model string RAxML-NG accepts for --model. A fixed model skips model selection, which can take a quarter or more of the tree building time on large alignments.",
+                    "fa_icon": "fas fa-project-diagram"
+                },
+                "raxmlng_fast": {
+                    "type": "boolean",
+                    "description": "Build the reference tree with the RAxML-NG fast search.",
+                    "help_text": "Runs one parsimony starting tree and a simplified topology search with an early stopping rule (raxml-ng --fast), still under the taxonomy constraint. It is much faster than the default adaptive search on large alignments, at the price of a somewhat less optimal tree. How that affects which sequences are flagged has not been measured yet.",
+                    "fa_icon": "fas fa-bolt"
+                },
                 "folds_per_job": {
                     "type": "integer",
                     "minimum": 1,

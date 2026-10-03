@@ -70,6 +70,8 @@ workflow SATIVA {
 
     taxcode       // value:   sativa-epang taxonomic code: bac/bot/zoo/vir
 
+    raxmlng_model // value:   RAxML-NG model for the reference tree; DNA runs model selection
+
     folds_per_job // value:   folds each leave-one-out placement job places, or null for all in one
 
     ch_ref_tree   // channel: [ val(meta), path(tree.nwk) ]
@@ -86,8 +88,8 @@ workflow SATIVA {
     // ── Phase 1: Reference tree construction ───────────────────────────────────
     //
     // Build a multifurcating guide tree from taxonomy strings, then run RAxML-NG
-    // with that tree as a topology constraint and its own automatic model testing
-    // (MOOSE, triggered by "DNA" for these nucleotide marker genes). The resulting
+    // with that tree as a topology constraint, under raxmlng_model; "DNA" runs
+    // RAxML-NG's own automatic model testing (MOOSE) first. The resulting
     // tree + model are reusable across runs (pass via ch_ref_tree / ch_ref_model to
     // skip this phase).
 
@@ -99,7 +101,7 @@ workflow SATIVA {
     TAXONOMY2PHYLOGENY(
         ch_taxonomy_meta
             .join(ch_alignment_meta)
-            .map { meta, taxonomy, alignment -> [ meta, taxonomy, alignment, 'DNA' ] }
+            .map { meta, taxonomy, alignment -> [ meta, taxonomy, alignment, raxmlng_model ] }
     )
 
     def ch_tree  = TAXONOMY2PHYLOGENY.out.tree
