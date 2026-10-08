@@ -78,6 +78,10 @@ On large alignments the search itself dominates the run time.
 `--raxmlng_fast` switches to the RAxML-NG fast search: one parsimony starting tree and a simplified topology search that stops early.
 The constraint still applies, and the tree is somewhat less optimal than the default search gives.
 
+`--raxmlng_seed` sets the seed of the tree search (default 42).
+A different seed can give a somewhat different tree and so somewhat different flags.
+The published files do not carry the seed in their names, so run another seed with a new `--outdir`.
+
 ## Reference export
 
 `--export_n_per_species` takes a comma-separated list of numbers, e.g. `1,5,20`, and writes three gzipped FASTA files to `export/` for each:

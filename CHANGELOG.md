@@ -9,6 +9,7 @@ Initial release of nf-core/taxmarker, created with the [nf-core](https://nf-co.r
 
 ### `Added`
 
+- [#49](https://github.com/nf-core/taxmarker/pull/49) - New `--raxmlng_seed` (default 42) sets the seed of the RAxML-NG reference tree search, so a seed can be changed without overriding `ext.args`, which would also drop `--fast`
 - [#38](https://github.com/nf-core/taxmarker/pull/38) - `--export_n_per_species` (e.g. `1,5,20`) exports verified reference sequences to `export/`: for each number, at most that many sequences per species, ranked by weight times length, as gzipped FASTA for DADA2's `addSpecies()` and `assignTaxonomy()` and with the original headers. Cluster members inherit their representative's verdict; flagged and unchecked sequences are left out
 - [#34](https://github.com/nf-core/taxmarker/pull/34) - `--min_profile_cover_rescue` (default 0.5) keeps the best-covered sequence of any taxon that has none above `--min_profile_cover`, so taxa known only from partial 16S sequences are no longer lost entirely. The PROFILECOVER report gains a `status` column (`excluded`/`rescued`)
 - [#27](https://github.com/nf-core/taxmarker/pull/27) - `--folds_per_job` spreads the leave-one-out placement over several jobs, each placing that many folds through `sativa-epang`'s own `-folds` (unset by default, placing them all in one job as before). The job count follows from the fold count, so no job is handed an empty range, and a new local `sativaepang/mergefolds` module gathers the results before scoring, so they do not depend on how the folds were split

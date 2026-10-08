@@ -32,6 +32,7 @@ params {
     skip_profile_cover: Boolean
     skip_sativa: Boolean
     raxmlng_fast: Boolean
+    raxmlng_seed: Integer
     version: Boolean
     plaintext_email: Boolean
     monochrome_logs: Boolean

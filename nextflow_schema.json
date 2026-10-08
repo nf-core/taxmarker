@@ -186,6 +186,13 @@
                     "help_text": "Runs one parsimony starting tree and a simplified topology search with an early stopping rule (raxml-ng --fast), still under the taxonomy constraint. It is much faster than the default adaptive search on large alignments, at the price of a somewhat less optimal tree. How that affects which sequences are flagged has not been measured yet.",
                     "fa_icon": "fas fa-bolt"
                 },
+                "raxmlng_seed": {
+                    "type": "integer",
+                    "default": 42,
+                    "description": "Random seed for the RAxML-NG reference tree search.",
+                    "help_text": "Different seeds can give somewhat different trees, and so somewhat different flags, especially with --raxmlng_fast. A resumed run with another seed re-runs the tree search and everything after it and overwrites the published files, so use a new --outdir.",
+                    "fa_icon": "fas fa-dice"
+                },
                 "folds_per_job": {
                     "type": "integer",
                     "minimum": 1,

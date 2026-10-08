@@ -120,6 +120,28 @@ nextflow_pipeline {
             assertAll(
                 { assert log.contains("ML tree search (simplified)") },
                 { assert log.contains("Model selection") },
+                { assert log.contains("random seed: 42") },
+            )
+        }
+    }
+
+    test("-profile test, raxmlng seed together with the fast search") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_fast    = true
+                raxmlng_seed    = 7
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("random seed: 7") },
+                { assert log.contains("ML tree search (simplified)") },
             )
         }
     }
