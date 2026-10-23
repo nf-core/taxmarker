@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "raxmlng_evaluate"
+description: Optimise the branch lengths and model parameters of a fixed tree topology with RAxML-NG
+keywords:
+  - phylogeny
+  - newick
+  - maximum likelihood
+  - branch lengths
+tools:
+  - "raxmlng":
+      description: RAxML-NG is a phylogenetic tree inference tool which uses maximum-likelihood (ML) optimality criterion.
+      homepage: https://github.com/amkozlov/raxml-ng
+      documentation: https://github.com/amkozlov/raxml-ng/wiki
+      tool_dev_url: https://github.com/amkozlov/raxml-ng
+      doi: 10.1093/bioinformatics/btz305
+      licence:
+        - "GPL v2-or-later"
+      identifier: ""
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information (e.g. [ id:'sample1' ])
+    - alignment:
+        type: file
+        description: A FASTA/PHYLIP format multiple sequence alignment file
+        pattern: "*.{fasta,fas,fa,mfa,phy}"
+        ontologies: []
+    - tree:
+        type: file
+        description: |
+          The tree to evaluate in Newick format.
+          Its topology is kept, only branch lengths and model parameters are optimised.
+        pattern: "*.{nwk,newick,tree,treefile,bestTree}"
+        ontologies: []
+    - model:
+        type: string
+        description: The substitution model, e.g. "GTR+G". Model selection (e.g. "DNA") is not supported.
+output:
+  phylogeny:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information (e.g. [ id:'sample1' ])
+      - "*.raxml.bestTree":
+          type: file
+          description: The input tree with optimised branch lengths
+          pattern: "*.raxml.bestTree"
+          ontologies: []
+  best_model:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information (e.g. [ id:'sample1' ])
+      - "*.raxml.bestModel":
+          type: file
+          description: RAxML-NG model file with the optimised parameters
+          pattern: "*.raxml.bestModel"
+          ontologies: []
+  log:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information (e.g. [ id:'sample1' ])
+      - "*.raxml.log":
+          type: file
+          description: RAxML-NG log, including the final log-likelihood
+          pattern: "*.raxml.log"
+          ontologies: []
+  versions_raxmlng:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - raxmlng:
+          type: string
+          description: The name of the tool
+      - "raxml-ng --version 2>&1 | sed '/RAxML-NG v/!d;s/.*v. //;s/ .*//'":
+          type: eval
+          description: The expression to obtain the version of the tool
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - raxmlng:
+          type: string
+          description: The name of the tool
+      - "raxml-ng --version 2>&1 | sed '/RAxML-NG v/!d;s/.*v. //;s/ .*//'":
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

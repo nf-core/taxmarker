@@ -53,7 +53,7 @@ output:
           description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
       - parts/*.fasta:
           type: file
-          description: Alignment of each part (`job_NNN.fasta`), including its outgroup sequences.
+          description: Alignment of each part to search (`job_NNN.fasta`), including its outgroup sequences.
           pattern: "parts/*.fasta"
           ontologies:
             - edam: http://edamontology.org/format_1929 # FASTA
@@ -63,8 +63,20 @@ output:
           description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
       - parts/*.nwk:
           type: file
-          description: Constraint tree of each part (`job_NNN.nwk`), with the same tips as the alignment of that part.
+          description: Constraint tree of each part to search (`job_NNN.nwk`), with the same tips as the alignment of that part.
           pattern: "parts/*.nwk"
+          ontologies:
+            - edam: http://edamontology.org/format_1910 # Newick
+  resolved:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - parts/resolved/*.nwk:
+          type: file
+          description: |
+            Tree of each part whose constraint tree is fully resolved (`job_NNN.resolved.nwk`), which RAxML-NG
+            rejects as a constraint and which has nothing left to search. Passed to the graft as the tree of that part.
+          pattern: "parts/resolved/*.nwk"
           ontologies:
             - edam: http://edamontology.org/format_1910 # Newick
   plan:
@@ -73,7 +85,7 @@ output:
           description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
       - "*.plan.json":
           type: file
-          description: Parts with their size, representatives, outgroup tips and whether they are the root part.
+          description: Parts with their size, representatives, outgroup tips, whether they are the root part and whether their tree is fully resolved (not searched).
           pattern: "*.plan.json"
           ontologies:
             - edam: http://edamontology.org/format_3464 # JSON

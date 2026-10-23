@@ -32,6 +32,11 @@ params {
     skip_profile_cover: Boolean
     skip_sativa: Boolean
     run_reference: Boolean
+    run_divided_tree_search: Boolean
+    tree_part_max_tips: Integer
+    tree_part_min_tips: Integer
+    tree_part_reps: Integer
+    tree_part_outgroups: Integer
     raxmlng_fast: Boolean
     raxmlng_seed: Integer
     raxmlng_blopt: String?
@@ -93,6 +98,7 @@ workflow NFCORE_TAXMARKER {
         params.folds_per_job,
         params.export_n_per_species,
         params.run_reference,
+        params.run_divided_tree_search,
         params.hmm,
         params.hmm_name,
         params.align_chunk_size,

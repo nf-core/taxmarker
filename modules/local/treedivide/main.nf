@@ -11,8 +11,9 @@ process TREEDIVIDE {
     tuple val(meta), path(alignment), path(constraint), path(partition_tree)
 
     output:
-    tuple val(meta), path("parts/*.fasta"),  emit: fasta
-    tuple val(meta), path("parts/*.nwk"),    emit: constraints
+    tuple val(meta), path("parts/*.fasta"),         emit: fasta       , optional: true
+    tuple val(meta), path("parts/*.nwk"),           emit: constraints , optional: true
+    tuple val(meta), path("parts/resolved/*.nwk"),  emit: resolved    , optional: true
     tuple val(meta), path("*.plan.json"),    emit: plan
     tuple val("${task.process}"), val('python'), eval("python3 --version | sed 's/Python //'"), topic: versions, emit: versions_python
 
@@ -38,6 +39,6 @@ process TREEDIVIDE {
     """
     mkdir parts
     touch parts/job_000.fasta parts/job_000.nwk
-    echo '{"jobs": []}' > ${prefix}.plan.json
+    echo '{"jobs": [{"id": "job_000", "n": 0, "reps": [], "outgroups": [], "root": true, "resolved": false}]}' > ${prefix}.plan.json
     """
 }

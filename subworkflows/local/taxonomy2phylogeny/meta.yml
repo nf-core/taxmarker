@@ -15,6 +15,7 @@ keywords:
 components:
   - taxonomytree
   - raxmlng/search
+  - divided_tree_search
 input:
   - ch_taxonomy_alignment:
       type: file
@@ -24,6 +25,11 @@ input:
         the phylogeny under.
         Structure: [ val(meta), path(taxonomy), path(alignment), val(raxmlng_model) ]
       pattern: "*.{fa,fasta,fna,mfa,phy}"
+  - divided:
+      type: boolean
+      description: |
+        Search the parts of the taxonomy separately and graft them (divided_tree_search) instead of searching the
+        whole tree at once. Needs a fixed model.
 output:
   - tree:
       type: file

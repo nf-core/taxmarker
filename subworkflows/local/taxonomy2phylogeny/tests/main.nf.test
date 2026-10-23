@@ -26,6 +26,7 @@ nextflow_workflow {
                     file(params.modules_testdata_base_path + 'generic/fasta/taxonomytree_test.fasta', checkIfExists: true),
                     'DNA',
                 ])
+                input[1] = false
                 """
             }
         }
@@ -61,6 +62,7 @@ nextflow_workflow {
                     file(params.modules_testdata_base_path + 'generic/fasta/taxonomytree_test.fasta', checkIfExists: true),
                     'DNA',
                 ])
+                input[1] = false
                 """
             }
         }

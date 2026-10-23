@@ -45,6 +45,11 @@ input:
       description: |
         RAxML-NG model for the reference tree, for example GTR+G4. DNA runs
         model selection first.
+  - divided_tree_search:
+      type: boolean
+      description: |
+        Search the reference tree in parts and graft them (see taxonomy2phylogeny);
+        needs a fixed model.
   - folds_per_job:
       type: integer
       description: |

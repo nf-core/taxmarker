@@ -1,0 +1,225 @@
+nextflow_workflow {
+
+    name "Test Subworkflow DIVIDED_TREE_SEARCH"
+    script "../main.nf"
+    config "./nextflow.config"
+    workflow "DIVIDED_TREE_SEARCH"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "taxmarker"
+    tag "subworkflows/divided_tree_search"
+    tag "modules/treedivide"
+    tag "modules/treegraft"
+    tag "raxmlng"
+    tag "raxmlng/search"
+    tag "raxmlng/evaluate"
+
+    // Three taxa of six tips and 400 sites, built inline: the taxon sequences differ from the root in 20% of the sites,
+    // tips from their taxon sequence in 5%.
+    def inputs = """
+        def rnd = new Random(1)
+        def bases = ['A', 'C', 'G', 'T']
+        def root = (1..400).collect { bases[rnd.nextInt(4)] }
+        def seqs = [:]
+        ['a', 'b', 'c'].each { taxon ->
+            def ts = root.collect { c -> rnd.nextDouble() < 0.2 ? bases[rnd.nextInt(4)] : c }
+            (1..6).each { i -> seqs[taxon + i] = ts.collect { c -> rnd.nextDouble() < 0.05 ? bases[rnd.nextInt(4)] : c }.join() }
+        }
+        def dir = java.nio.file.Files.createTempDirectory('divided').toFile()
+        def aln = new File(dir, 'aln.fasta')
+        aln.text = seqs.collect { name, s -> '>' + name + '\\n' + s + '\\n' }.join()
+        def guide = new File(dir, 'guide.nwk')
+        guide.text = '((a1,a2,a3,a4,a5,a6),(b1,b2,b3,b4,b5,b6),(c1,c2,c3,c4,c5,c6));\\n'
+    """
+    def taxa = [ 'a', 'b', 'c' ]
+
+    // Taxa that are not a clade of the tree; none is allowed when the tree is built under the guide tree.
+    def broken = { String nwk ->
+        def stack = []
+        def clades = []
+        (nwk.replaceAll(/:[0-9.eE+-]+/, '') =~ /[(),;]|[A-Za-z0-9_]+/).each { t ->
+            if (t == '(') { stack << [] }
+            else if (t == ')') {
+                def leaves = stack.remove(stack.size() - 1)
+                clades << leaves
+                if (stack) { stack[-1].addAll(leaves) }
+            }
+            else if (t ==~ /[A-Za-z0-9_]+/) { stack[-1] << t }
+        }
+        def all = clades.max { it.size() }
+        ['a', 'b', 'c'].findAll { taxon ->
+            def tips = all.findAll { it.startsWith(taxon) }
+            !clades.any { it.sort() == tips.sort() } && !clades.any { (all - it).sort() == tips.sort() }
+        }
+    }
+
+    test("taxmarker - tree divided into parts keeps every taxon a clade") {
+
+        when {
+            params {
+                module_args = '--max 10 --min 2 --reps 3 --outgroups 1'
+            }
+            workflow {
+                inputs + """
+                input[0] = channel.of([ [ id:'test' ], file(aln.toString()), file(guide.toString()), 'GTR+G' ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tree = path(workflow.out.tree[0][1]).text
+            def searches = workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH') }
+
+            assertAll(
+                // Three taxa of six tips and a top part of three representatives each: four searches.
+                { assert searches.size() == 4 },
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE') }.size() == 1 },
+                { assert (tree.replaceAll(/:[0-9.eE+-]+/, '') =~ /[abc][1-6]/).collect { it }.sort() == taxa.collectMany { t -> (1..6).collect { t + it } }.sort() },
+                { assert broken(tree) == [] },
+                { assert path(workflow.out.model[0][1]).text.startsWith('GTR') }
+            )
+        }
+    }
+
+    test("taxmarker - tree that needs no dividing is searched as one part") {
+
+        when {
+            params {
+                module_args = '--max 100'
+            }
+            workflow {
+                inputs + """
+                input[0] = channel.of([ [ id:'test' ], file(aln.toString()), file(guide.toString()), 'GTR+G' ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tree = path(workflow.out.tree[0][1]).text
+
+            assertAll(
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH') }.size() == 1 },
+                { assert (tree.replaceAll(/:[0-9.eE+-]+/, '') =~ /[abc][1-6]/).collect { it }.sort() == taxa.collectMany { t -> (1..6).collect { t + it } }.sort() },
+                { assert broken(tree) == [] }
+            )
+        }
+    }
+
+    test("taxmarker - two inputs do not mix their parts") {
+
+        when {
+            params {
+                module_args = '--max 10 --min 2 --reps 3 --outgroups 1'
+            }
+            workflow {
+                inputs + """
+                def guide2 = new File(dir, 'guide2.nwk')
+                guide2.text = '((a1,a2,a3),(a4,a5,a6),(b1,b2,b3,b4,b5,b6),(c1,c2,c3,c4,c5,c6));\\n'
+                input[0] = channel.of(
+                    [ [ id:'one' ], file(aln.toString()), file(guide.toString()),  'GTR+G' ],
+                    [ [ id:'two' ], file(aln.toString()), file(guide2.toString()), 'GTR+G' ]
+                )
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def trees = workflow.out.tree.collectEntries { meta, tree -> [ meta.id, path(tree).text ] }
+
+            assertAll(
+                { assert trees.keySet() == [ 'one', 'two' ] as Set },
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE') }.size() == 2 },
+                { assert trees.every { id, tree -> (tree.replaceAll(/:[0-9.eE+-]+/, '') =~ /[abc][1-6]/).collect { it }.size() == 18 } },
+                { assert trees.every { id, tree -> broken(tree) == [] } }
+            )
+        }
+    }
+
+    test("taxmarker - a part with a fully resolved constraint tree is not searched but grafted") {
+
+        when {
+            params {
+                module_args = '--max 10 --min 2 --reps 3 --outgroups 1'
+            }
+            workflow {
+                inputs + """
+                def binary = new File(dir, 'binary.nwk')
+                binary.text = '((a1,a2,a3,a4,a5,a6),(b1,b2,b3,b4,b5,b6),(((c1,c2),(c3,c4)),(c5,c6)));\\n'
+                input[0] = channel.of([ [ id:'test' ], file(aln.toString()), file(binary.toString()), 'GTR+G' ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tree = path(workflow.out.tree[0][1]).text.replaceAll(/:[0-9.eE+-]+/, '')
+
+            assertAll(
+                // The taxon c, with its outgroup tip, is binary: only a, b and the top part are searched.
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH') }.size() == 3 },
+                { assert (tree =~ /[abc][1-6]/).collect { it }.size() == 18 },
+                { assert tree =~ /\((c1,c2|c2,c1)\)/ },
+                { assert tree =~ /\((c3,c4|c4,c3)\)/ },
+                { assert broken(tree) == [] }
+            )
+        }
+    }
+
+    test("taxmarker - a tree that is fully resolved is only evaluated") {
+
+        when {
+            params {
+                module_args = '--max 100'
+            }
+            workflow {
+                inputs + """
+                def names = seqs.keySet().toList()
+                def binary = new File(dir, 'binary.nwk')
+                binary.text = names.drop(1).inject(names[0]) { acc, n -> '(' + acc + ',' + n + ')' } + ';\\n'
+                input[0] = channel.of([ [ id:'test' ], file(aln.toString()), file(binary.toString()), 'GTR+G' ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            assertAll(
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH') }.size() == 0 },
+                { assert workflow.trace.succeeded().findAll { it.name.startsWith('DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE') }.size() == 1 },
+                { assert (path(workflow.out.tree[0][1]).text =~ /[abc][1-6]/).collect { it }.size() == 18 }
+            )
+        }
+    }
+
+    test("taxmarker - stub") {
+
+        options "-stub"
+
+        when {
+            params {
+                module_args = '--max 8'
+            }
+            workflow {
+                inputs + """
+                input[0] = channel.of([ [ id:'test' ], file(aln.toString()), file(guide.toString()), 'GTR+G' ])
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                { assert snapshot(workflow.out).match() }
+            )
+        }
+    }
+}

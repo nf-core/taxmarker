@@ -155,6 +155,46 @@ nextflow_pipeline {
 
     }
 
+    test("-profile test_gtdb, reference tree searched in parts") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_raxtax             = true
+                skip_sativa             = true
+                run_reference           = true
+                raxmlng_model           = "GTR+G4"
+                run_divided_tree_search = true
+                tree_part_max_tips      = 6
+                tree_part_min_tips      = 2
+                tree_part_reps          = 2
+                tree_part_outgroups     = 1
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tips  = (path("$outputDir/reference/user-alignment.raxml.bestTree").text =~ /[(,]([^(),:;]+):/).collect { it[1] }
+            def names = path("$outputDir/reference/user-alignment.reference.fasta").readLines().findAll { it.startsWith('>') }.collect { it.substring(1).tokenize(' ')[0] }
+
+            assertAll(
+                { assert tips.toSet() == names.toSet() },
+                { assert tips.size() == names.size() },
+                { assert path("$outputDir/reference/user-alignment.raxml.bestModel").text.startsWith("GTR") },
+                // Ten tips cut at six: a binary part that is not searched, and the top part that is.
+                { assert workflow.trace.succeeded().findAll { it.name.contains('TREEGRAFT') }.size() == 1 },
+                { assert workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_SEARCH') }.size() == 1 },
+                // Only the evaluated tree is published: not the parts, and not into the default directory.
+                { assert !new File("$outputDir/raxmlng").exists() },
+                { assert !new File("$outputDir/treedivide").exists() },
+                { assert !new File("$outputDir/treegraft").exists() },
+                { assert new File("$outputDir/reference").list().findAll { it.contains('job_') }.isEmpty() },
+            )
+        }
+
+    }
+
     test("-profile test_gtdb, reference tree with sativa skipped") {
 
         when {

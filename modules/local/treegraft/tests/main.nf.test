@@ -54,6 +54,31 @@ nextflow_process {
         }
     }
 
+    test("taxmarker - the tree of a part that was not searched has no branch lengths and is grafted like a searched one") {
+
+        when {
+            process {
+                inputs + """
+                def resolved = new File(dir, 'job_000.resolved.nwk')
+                resolved.text = '(((a1,a3),(a2,a4)),b1,b2);\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(resolved.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def topology = path(process.out.tree[0][1]).text.replaceAll(/:[0-9.]+/, '')
+
+            assertAll(
+                { assert (1..4).every { topology.contains('a' + it) && topology.contains('b' + it) } },
+                { assert topology =~ /\((a1,a3|a3,a1)\)/ },
+                { assert topology =~ /\((a2,a4|a4,a2)\)/ }
+            )
+        }
+    }
+
     test("taxmarker - a single root part is passed through") {
 
         when {

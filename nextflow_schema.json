@@ -220,6 +220,41 @@
                     "help_text": "nr_safe is slower than the default but avoids a branch length error (BRLEN out-of-bounds) that RAxML-NG can raise on alignments with near-empty sequences.",
                     "fa_icon": "fas fa-ruler"
                 },
+                "run_divided_tree_search": {
+                    "type": "boolean",
+                    "description": "Build the reference trees by searching parts of the taxonomy separately and grafting the results, for large inputs.",
+                    "help_text": "The taxonomy is cut into parts of at most --tree_part_max_tips sequences, each part is searched under its own part of the taxonomy constraint (in parallel), the part trees are grafted into the top tree and one RAxML-NG evaluation gives branch lengths and model parameters of the full tree. The result has the same form as the whole-tree search and breaks no taxon of the taxonomy. It needs a fixed model (--raxmlng_model, and --raxmlng_reference_model for --run_reference), since the parts cannot select one each.",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "tree_part_max_tips": {
+                    "type": "integer",
+                    "default": 2000,
+                    "minimum": 4,
+                    "description": "Largest number of sequences in a part searched by --run_divided_tree_search.",
+                    "help_text": "The top level, where the closed parts are represented by a few sequences each, is also kept within this size.",
+                    "fa_icon": "fas fa-compress-arrows-alt"
+                },
+                "tree_part_min_tips": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 2,
+                    "description": "Smallest taxon that --run_divided_tree_search searches as a part of its own, unless a node cannot otherwise be brought down to --tree_part_max_tips.",
+                    "fa_icon": "fas fa-compress"
+                },
+                "tree_part_reps": {
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 1,
+                    "description": "Number of sequences representing a searched part in the part above it.",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "tree_part_outgroups": {
+                    "type": "integer",
+                    "default": 4,
+                    "minimum": 1,
+                    "description": "Number of sequences from neighbouring parts added to each part as outgroup, so that its tree can be rooted and grafted.",
+                    "fa_icon": "fas fa-hashtag"
+                },
                 "folds_per_job": {
                     "type": "integer",
                     "minimum": 1,

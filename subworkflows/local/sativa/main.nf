@@ -72,6 +72,8 @@ workflow SATIVA {
 
     raxmlng_model // value:   RAxML-NG model for the reference tree; DNA runs model selection
 
+    divided_tree_search // value: search the reference tree in parts and graft them (needs a fixed model)
+
     folds_per_job // value:   folds each leave-one-out placement job places, or null for all in one
 
     ch_ref_tree   // channel: [ val(meta), path(tree.nwk) ]
@@ -101,7 +103,8 @@ workflow SATIVA {
     TAXONOMY2PHYLOGENY(
         ch_taxonomy_meta
             .join(ch_alignment_meta)
-            .map { meta, taxonomy, alignment -> [ meta, taxonomy, alignment, raxmlng_model ] }
+            .map { meta, taxonomy, alignment -> [ meta, taxonomy, alignment, raxmlng_model ] },
+        divided_tree_search
     )
 
     def ch_tree  = TAXONOMY2PHYLOGENY.out.tree

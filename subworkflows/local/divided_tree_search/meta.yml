@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "divided_tree_search"
+description: |
+  Taxonomy-constrained ML tree search for large alignments.
+  The guide tree is cut into parts (treedivide), every part is searched under its part of the constraint
+  (raxmlng/search, in parallel), the part trees are grafted together (treegraft), and one RAxML-NG evaluation
+  optimises branch lengths and model of the full tree (raxmlng/evaluate).
+  A part whose constraint tree is fully resolved is not searched.
+keywords:
+  - phylogenetics
+  - taxonomy
+  - raxml-ng
+  - newick
+  - divide and conquer
+components:
+  - treedivide
+  - treegraft
+  - raxmlng/search
+  - raxmlng/evaluate
+input:
+  - ch_input:
+      type: file
+      description: |
+        Alignment, taxonomy guide tree (multifurcating Newick) and a fixed RAxML-NG model.
+        Model selection ("DNA"/"AA"/"auto") is not supported, since every part would select its own.
+        Structure: [ val(meta), path(alignment), path(guide_tree), val(model) ]
+      pattern: "*.{fa,fasta,fna,mfa,nwk}"
+output:
+  - tree:
+      type: file
+      description: |
+        Full tree with the topology of the grafted part trees and optimised branch lengths.
+        Structure: [ val(meta), path(tree) ]
+      pattern: "*.raxml.bestTree"
+  - model:
+      type: file
+      description: |
+        RAxML-NG model file with the parameters optimised on the full tree.
+        Structure: [ val(meta), path(model) ]
+      pattern: "*.raxml.bestModel"
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -55,8 +55,11 @@ nextflow_process {
                 { assert plan.jobs.count { it.root } == 1 },
                 { assert plan.jobs.every { it.n <= 8 } },
                 { assert plan.jobs.find { it.root }.n == 8 },
-                { assert fasta.size() == 6 },
-                { assert nwk.size() == 6 },
+                // The part of the representatives of the grouped flat taxon, with its two outgroup tips, is binary:
+                // it is handed over as a tree instead (see the resolved test below).
+                { assert fasta.size() == 5 },
+                { assert nwk.size() == 5 },
+                { assert [process.out.resolved[0][1]].flatten().size() == 1 },
                 { assert fasta.collect { new File(it).name - '.fasta' } == nwk.collect { new File(it).name - '.nwk' } },
                 // A part never holds more than --max tips plus its outgroup tips.
                 { assert fasta.every { names(it).size() <= 8 + 2 } },
@@ -229,9 +232,9 @@ nextflow_process {
             process {
                 """
                 def constraint = File.createTempFile('test', '.nwk')
-                constraint.text = "[&R] ( 'a_b' ,\\n a2 ,\\n ( a3:1.5e-2, 'a4' )95:0.2 )\\n"
+                constraint.text = "[&R] ( 'a_b' ,\\n a2 ,\\n ( a3:1.5e-2, 'a4', a5 )95:0.2 )\\n"
                 def aln = File.createTempFile('test', '.fasta')
-                aln.text = ['a_b', 'a2', 'a3', 'a4'].collect { '>' + it + '\\n' + 'ACGT' + '\\n' }.join('')
+                aln.text = ['a_b', 'a2', 'a3', 'a4', 'a5'].collect { '>' + it + '\\n' + 'ACGT' + '\\n' }.join('')
                 input[0] = [ [ id:'test' ], file(aln.toString()), file(constraint.toString()), [] ]
                 """
             }
@@ -245,8 +248,8 @@ nextflow_process {
 
             assertAll(
                 { assert plan.jobs.size() == 1 },
-                { assert plan.jobs[0].n == 4 },
-                { assert ['a_b', 'a2', 'a3', 'a4'].every { tree.contains(it) } },
+                { assert plan.jobs[0].n == 5 },
+                { assert ['a_b', 'a2', 'a3', 'a4', 'a5'].every { tree.contains(it) } },
                 { assert !tree.contains("'") }
             )
         }
@@ -320,6 +323,43 @@ nextflow_process {
         }
     }
 
+    test("taxmarker - taxa all smaller than --min are still divided into parts of at most --max tips") {
+
+        when {
+            params {
+                module_args = '--max 11 --min 10 --reps 3 --outgroups 2'
+            }
+            process {
+                """
+                def taxa = ['a', 'b', 'c'].collect { t -> (1..8).collect { t + it } }
+                def constraint = File.createTempFile('test', '.nwk')
+                constraint.text = '(' + taxa.collect { '(' + it.join(',') + ')' }.join(',') + ');\\n'
+                def aln = File.createTempFile('test', '.fasta')
+                aln.text = taxa.flatten().collect { '>' + it + '\\n' + 'ACGTACGT' + '\\n' }.join('')
+                input[0] = [ [ id:'test' ], file(aln.toString()), file(constraint.toString()), [] ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def plan  = new groovy.json.JsonSlurper().parseText(path(process.out.plan[0][1]).text)
+            def fasta = [process.out.fasta[0][1]].flatten()
+            def names = { f -> path(f).text.readLines().findAll { it.startsWith('>') }.collect { it.substring(1) } }
+
+            assertAll(
+                // No eight-tip taxon fits with another within --max, so a is closed as a part although it is below --min.
+                // Its three representatives then fit with b (3 + 8), which becomes a part, and the root part holds
+                // that part's representatives and c.
+                { assert plan.jobs.size() == 3 },
+                { assert plan.jobs.count { it.root } == 1 },
+                { assert plan.jobs.every { it.n <= 11 } },
+                { assert fasta.every { names(it).size() <= 11 + 2 } }
+            )
+        }
+    }
+
     test("taxmarker - fails when --min or --outgroups would give parts that cannot be grafted") {
 
         when {
@@ -336,6 +376,47 @@ nextflow_process {
         then {
             assert process.failed
             assert process.errorReport.contains('--min must be at least 2')
+        }
+    }
+
+    test("taxmarker - a part whose constraint tree is fully resolved is handed over as a tree, not searched") {
+
+        when {
+            params {
+                module_args = '--max 6 --min 4 --reps 3 --outgroups 1'
+            }
+            process {
+                """
+                def x = (1..4).collect { 'x' + it }
+                def y = (1..12).collect { 'y' + it }
+                def constraint = File.createTempFile('test', '.nwk')
+                constraint.text = '(((x1,x2),(x3,x4)),(' + y.join(',') + '));\\n'
+                def aln = File.createTempFile('test', '.fasta')
+                aln.text = (x + y).collect { '>' + it + '\\n' + 'ACGTACGT' + '\\n' }.join('')
+                input[0] = [ [ id:'test' ], file(aln.toString()), file(constraint.toString()), [] ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def plan     = new groovy.json.JsonSlurper().parseText(path(process.out.plan[0][1]).text)
+            def fasta    = [process.out.fasta[0][1]].flatten()
+            def resolved = [process.out.resolved[0][1]].flatten()
+            def id       = { f -> new File(f.toString()).name.tokenize('.')[0] }
+
+            assertAll(
+                // x1-x4 with one outgroup tip: ((x1,x2),(x3,x4)) plus the outgroup is binary, which RAxML-NG rejects.
+                { assert plan.jobs.size() == 5 },
+                { assert plan.jobs.findAll { it.resolved }.size() == 1 },
+                { assert plan.jobs.find { it.resolved }.n == 4 },
+                { assert resolved.size() == 1 },
+                { assert id(resolved[0]) == plan.jobs.find { it.resolved }.id },
+                { assert path(resolved[0]).text.findAll(/[xy][0-9]+/).size() == 5 },
+                // The other two parts are searched as before and have no tree handed over.
+                { assert fasta.collect { id(it) } as Set == plan.jobs.findAll { !it.resolved }.collect { it.id } as Set }
+            )
         }
     }
 

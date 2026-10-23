@@ -187,4 +187,121 @@ nextflow_pipeline {
             assert !log.contains("ML tree search (simplified)")
         }
     }
+
+    test("-profile test, divided tree search") {
+
+        when {
+            params {
+                outdir                   = "$outputDir"
+                skip_clustering          = true
+                raxmlng_model            = "GTR+G4"
+                run_divided_tree_search  = true
+                tree_part_max_tips       = 15
+                tree_part_min_tips       = 2
+                tree_part_reps           = 3
+                tree_part_outgroups      = 2
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            def searches = workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_SEARCH') }
+            assertAll(
+                // The tree and model that reach the placement step come from the evaluation of the grafted tree.
+                { assert log.contains("--evaluate") },
+                { assert searches.size() > 1 },
+                { assert new File("$outputDir/raxmlng/user-alignment.raxml.bestTree").text.trim().endsWith(";") },
+                { assert new File("$outputDir/raxmlng/user-alignment.raxml.bestModel").text.startsWith("GTR") },
+                { assert new File("$outputDir/mislabels/user-alignment.mislabels.tsv").exists() },
+            )
+        }
+    }
+
+    test("-profile test, divided tree search needs a fixed model") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join("\n").contains("--run_divided_tree_search needs a fixed model")
+        }
+    }
+
+    test("-profile test, divided tree search needs a fixed model whatever its case") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                raxmlng_model           = "dna"
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join("\n").contains("--run_divided_tree_search needs a fixed model")
+        }
+    }
+
+    test("-profile test, divided tree search needs a fixed model for the reference tree too") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                raxmlng_model           = "GTR+G4"
+                raxmlng_reference_model = "DNA"
+                run_reference           = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join("\n").contains("--run_divided_tree_search needs a fixed model")
+        }
+    }
+
+    test("-profile test, divided tree search needs a fixed model for the reference tree when only --raxmlng_model names a selection") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                skip_sativa             = true
+                run_reference           = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.join("\n").contains("--run_divided_tree_search needs a fixed model")
+        }
+    }
+
+    test("-profile test, divided tree search without a tree to build warns") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                skip_sativa             = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert new File("$launchDir/meta/nextflow.log").text.contains("WARN  nextflow.Nextflow - --run_divided_tree_search has no effect")
+        }
+    }
 }

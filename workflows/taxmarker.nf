@@ -51,6 +51,7 @@ workflow TAXMARKER {
     folds_per_job      // value:   folds each placement job places, or null for all in one
     export_n_per_species // value: comma-separated sequences per species to export (a number or 'all'), or null to skip the export
     run_reference      // value:   build the reference tree for phylogenetic placement from the sequences that pass every step?
+    run_divided_tree_search // value: search the reference trees in parts and graft them, for large inputs?
     hmm                // value:   path to an HMM profile database, or null/empty if not needed
     hmm_name           // value:   name of a specific profile within hmm, or null/empty
     align_chunk_size   // value:   sequences aligned per hmmalign job
@@ -309,10 +310,17 @@ workflow TAXMARKER {
     // The later two SWF_SATIVA params are meant to pass a reference tree and a
     // model file respectively. Not implemented yet.
     //
+    def model_selection = ['DNA', 'AA', 'AUTO']
+    if (run_divided_tree_search && ((!skip_sativa && raxmlng_model.toUpperCase() in model_selection) || (run_reference && (raxmlng_reference_model ?: raxmlng_model).toUpperCase() in model_selection))) {
+        error("--run_divided_tree_search needs a fixed model, for example --raxmlng_model GTR+G4 (and --raxmlng_reference_model for --run_reference): the parts cannot select one each.")
+    }
+    if (run_divided_tree_search && skip_sativa && !run_reference) {
+        log.warn("--run_divided_tree_search has no effect with --skip_sativa unless --run_reference builds a tree.")
+    }
     def ch_sativa_mislabels
     def run_sativa = !skip_sativa
     if (run_sativa) {
-        SWF_SATIVA(ch_taxonomy_for_sativa, ch_alignment_for_sativa, taxcode, raxmlng_model, folds_per_job, [], [])
+        SWF_SATIVA(ch_taxonomy_for_sativa, ch_alignment_for_sativa, taxcode, raxmlng_model, run_divided_tree_search, folds_per_job, [], [])
         ch_sativa_mislabels = SWF_SATIVA.out.mislabels
     } else {
         ch_sativa_mislabels = channel.empty()
@@ -356,7 +364,8 @@ workflow TAXMARKER {
         TAXONOMY2PHYLOGENY_REFERENCE(
             KEEPNAMES.out.taxonomy
                 .join(KEEPNAMES.out.alignment)
-                .map { meta, tax, aln -> [ meta, tax, aln, raxmlng_reference_model ?: raxmlng_model ] }
+                .map { meta, tax, aln -> [ meta, tax, aln, raxmlng_reference_model ?: raxmlng_model ] },
+            run_divided_tree_search
         )
     }
 
