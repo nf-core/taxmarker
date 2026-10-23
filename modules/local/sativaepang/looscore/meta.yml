@@ -25,6 +25,14 @@ input:
         description: Reference produced by `sativaepang/reference`'s `-stage reference`
         pattern: "*.refjson"
         ontologies: []
+    - model:
+        type: file
+        description: |
+          Model the reference tree was built under, the `*.model` written by
+          `sativaepang/reference`. The confirmation pass places the suspects under it
+          rather than under GTR+G.
+        pattern: "*.model"
+        ontologies: []
     - taskdir:
         type: directory
         description: |

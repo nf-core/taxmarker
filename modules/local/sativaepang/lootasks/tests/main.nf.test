@@ -17,6 +17,7 @@ nextflow_process {
                 input[0] = [
                     [ id:'test' ],
                     file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true),
                 ]
                 """
             }
@@ -27,7 +28,10 @@ nextflow_process {
             def manifest = new groovy.json.JsonSlurper().parse(new File(taskdir.toString(), "manifest.json"))
             assert process.success
             assertAll(
-                { assert !manifest.model.contains(",") },
+                // The reference model reaches the folds, rather than EPA-ng's GTR+G default.
+                { assert manifest.model == 'model' },
+                { assert new File(taskdir.toString(), 'model').text.startsWith('GTR{') },
+                { assert new File(taskdir.toString(), 'fold_000/model').text == new File(taskdir.toString(), 'model').text },
                 { assert manifest.n_folds > 0 },
                 { assert snapshot(sanitizeOutput(process.out)).match() }
             )
@@ -42,6 +46,7 @@ nextflow_process {
                 input[0] = [
                     [ id:'test' ],
                     file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.model', checkIfExists: true),
                 ]
                 """
             }
@@ -52,7 +57,10 @@ nextflow_process {
             def manifest = new groovy.json.JsonSlurper().parse(new File(taskdir.toString(), "manifest.json"))
             assert process.success
             assertAll(
-                { assert !manifest.model.contains(",") },
+                // The reference model reaches the folds, rather than EPA-ng's GTR+G default.
+                { assert manifest.model == 'model' },
+                { assert new File(taskdir.toString(), 'model').text.startsWith('GTR{') },
+                { assert new File(taskdir.toString(), 'fold_000/model').text == new File(taskdir.toString(), 'model').text },
                 { assert manifest.n_folds > 0 },
                 { assert snapshot(sanitizeOutput(process.out)).match() }
             )
@@ -69,6 +77,7 @@ nextflow_process {
                 input[0] = [
                     [ id:'test' ],
                     file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true),
                 ]
                 """
             }

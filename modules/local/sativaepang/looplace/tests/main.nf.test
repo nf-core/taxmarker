@@ -19,7 +19,8 @@ nextflow_process {
                     """
                     input[0] = [
                         [ id:'test' ],
-                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true)
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true)
                     ]
                     """
                 }
@@ -64,7 +65,8 @@ nextflow_process {
                     """
                     input[0] = [
                         [ id:'test' ],
-                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.refjson', checkIfExists: true)
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.model', checkIfExists: true)
                     ]
                     """
                 }
@@ -102,7 +104,8 @@ nextflow_process {
                     """
                     input[0] = [
                         [ id:'test' ],
-                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true)
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true)
                     ]
                     """
                 }

@@ -7,7 +7,7 @@
                         {
                             "id": "test"
                         },
-                        "test.mis:md5,0a0efff6a162ab994ee15f92231dc7e9"
+                        "test.mis:md5,c47a52a5c249b3fc42e595ab907b224c"
                     ]
                 ],
                 "versions_sativaepang": [
@@ -19,10 +19,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-09-30T10:06:18.349938",
+        "timestamp": "2026-10-23T20:01:55.825082765",
         "meta": {
-            "nf-test": "0.9.5",
-            "nextflow": "26.04.6"
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
         }
     },
     "gtdb archaea 16S": {
@@ -33,7 +33,7 @@
                         {
                             "id": "test"
                         },
-                        "test.mis:md5,a636eab9f102adb5fc73845af04200d7"
+                        "test.mis:md5,a85621a1bf411bf16d86dea918807540"
                     ]
                 ],
                 "versions_sativaepang": [
@@ -45,10 +45,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-09-30T10:06:32.497868",
+        "timestamp": "2026-10-23T20:02:21.55177752",
         "meta": {
-            "nf-test": "0.9.5",
-            "nextflow": "26.04.6"
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
         }
     },
     "sativa-epang tiny example - stub": {

@@ -127,7 +127,11 @@ workflow SATIVA {
         ch_reference_input.map { meta, _alignment, _taxonomy, _taxcode, _reftree, refmodel -> refmodel }
     )
 
-    SATIVAEPANG_LOOTASKS(SATIVAEPANG_REFERENCE.out.refjson)
+    // The model travels with the refjson: without it the placement falls back to GTR+G.
+    def ch_reference = SATIVAEPANG_REFERENCE.out.refjson.join(SATIVAEPANG_REFERENCE.out.model)
+    // ch_reference: [ meta, refjson, model ]
+
+    SATIVAEPANG_LOOTASKS(ch_reference)
 
     // One job per folds_per_job folds, sliced from the fold count lootasks actually
     // wrote into its manifest: deriving the job count from the work means no job is
@@ -180,7 +184,7 @@ workflow SATIVA {
     // other guaranteed correlation -- join explicitly rather than relying on
     // emission order.
     SATIVAEPANG_LOOSCORE(
-        SATIVAEPANG_REFERENCE.out.refjson.join(ch_taskdir)
+        ch_reference.join(ch_taskdir)
     )
 
     SATIVAEPANG_MISREPORT(

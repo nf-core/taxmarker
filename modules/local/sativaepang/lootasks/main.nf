@@ -8,7 +8,7 @@ process SATIVAEPANG_LOOTASKS {
         'quay.io/biocontainers/sativa-epang:0.10.2--py314hab16a5f_0' }"
 
     input:
-    tuple val(meta), path(refjson)
+    tuple val(meta), path(refjson), path(model)
 
     output:
     tuple val(meta), path("*.l1o_tasks"), emit: taskdir
@@ -21,6 +21,10 @@ process SATIVAEPANG_LOOTASKS {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
+    # sativa-epang takes the model from <refjson name>.model, next to the refjson, and
+    # copies it into the folds. Without it EPA-ng places under GTR+G.
+    [ -e "${refjson.baseName}.model" ] || ln -s "${model}" "${refjson.baseName}.model"
+
     sativa-epang \\
         -stage loo-tasks \\
         -r ${refjson} \\
@@ -34,8 +38,10 @@ process SATIVAEPANG_LOOTASKS {
     """
     mkdir -p ${prefix}.l1o_tasks/fold_000
     touch ${prefix}.l1o_tasks/manifest.json
+    touch ${prefix}.l1o_tasks/model
     touch ${prefix}.l1o_tasks/fold_000/ref.nwk
     touch ${prefix}.l1o_tasks/fold_000/ref.fasta
     touch ${prefix}.l1o_tasks/fold_000/query.fasta
+    touch ${prefix}.l1o_tasks/fold_000/model
     """
 }

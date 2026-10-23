@@ -8,7 +8,7 @@ process SATIVAEPANG_LOOSCORE {
         'quay.io/biocontainers/sativa-epang:0.10.2--py314hab16a5f_0' }"
 
     input:
-    tuple val(meta), path(refjson), path(taskdir, stageAs: "input")
+    tuple val(meta), path(refjson), path(model), path(taskdir, stageAs: "input")
 
     output:
     tuple val(meta), path("*.mis"), emit: mis
@@ -21,6 +21,10 @@ process SATIVAEPANG_LOOSCORE {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
+    # The confirmation pass takes the model from <refjson name>.model too: loo-place does
+    # not pass the copy in the task directory on.
+    [ -e "${refjson.baseName}.model" ] || ln -s "${model}" "${refjson.baseName}.model"
+
     sativa-epang \\
         -stage loo-score \\
         -r ${refjson} \\

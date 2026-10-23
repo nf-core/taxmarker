@@ -133,7 +133,7 @@
                                 "epa_result.jplace",
                                 "epang.log"
                             ],
-                            "manifest.json:md5,a84b028aae1bf18ff08e34061ce84789"
+                            "manifest.json:md5,f0afca66d211a43e96900afbf2af3401"
                         ]
                     ]
                 ],
@@ -146,10 +146,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-10-20T19:10:55.421158242",
+        "timestamp": "2026-10-23T20:00:57.153937782",
         "meta": {
             "nf-test": "0.9.4",
-            "nextflow": "26.04.6"
+            "nextflow": "26.04.4"
         }
     },
     "gtdb archaea 16S": {
@@ -286,7 +286,7 @@
                                 "epa_result.jplace",
                                 "epang.log"
                             ],
-                            "manifest.json:md5,910f69e0c1cb7cb52b1ae8c0060bae25"
+                            "manifest.json:md5,9e0f55004b78198695332e054ded729b"
                         ]
                     ]
                 ],
@@ -299,10 +299,10 @@
                 ]
             }
         ],
-        "timestamp": "2026-10-20T19:11:13.80855943",
+        "timestamp": "2026-10-23T20:01:19.691725572",
         "meta": {
             "nf-test": "0.9.4",
-            "nextflow": "26.04.6"
+            "nextflow": "26.04.4"
         }
     },
     "sativa-epang tiny example - stub": {
