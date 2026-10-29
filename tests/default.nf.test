@@ -295,6 +295,7 @@ nextflow_pipeline {
                 { assert evaluated(workDir) == [ selected(workDir) ] },
                 // FreeRate models are numerically unstable below 2000 taxa without per-rate scalers: the selection, every part and the evaluation use them.
                 { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_MOOSE').every { it.contains('--rate-scalers on') } },
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_MOOSE').every { it.contains('--data-type DNA') } },
                 { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH').size() > 1 },
                 { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH').every { it.contains('--rate-scalers on') } },
                 { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE').every { it.contains('--rate-scalers on') } },

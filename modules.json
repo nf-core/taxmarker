@@ -46,6 +46,16 @@
                         "git_sha": "98403d15b0e50edae1f3fec5eae5e24982f1fade",
                         "installed_by": ["modules"]
                     },
+                    "raxmlng/evaluate": {
+                        "branch": "master",
+                        "git_sha": "ab7fc9664af8979ecc32818dc5af6195daff94b7",
+                        "installed_by": ["modules"]
+                    },
+                    "raxmlng/moose": {
+                        "branch": "master",
+                        "git_sha": "eb44d4f0bf0da54ea9ef40e56262d3d3dee7ba52",
+                        "installed_by": ["modules"]
+                    },
                     "raxmlng/search": {
                         "branch": "master",
                         "git_sha": "227f85fe957700782b200df6aea9a0a288aff4a9",

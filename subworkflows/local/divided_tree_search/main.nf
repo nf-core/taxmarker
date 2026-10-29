@@ -1,7 +1,7 @@
 include { TREEDIVIDE       } from '../../../modules/local/treedivide/main'
 include { TREEGRAFT        } from '../../../modules/local/treegraft/main'
-include { RAXMLNG_EVALUATE } from '../../../modules/local/raxmlng/evaluate/main'
-include { RAXMLNG_MOOSE    } from '../../../modules/local/raxmlng/moose/main'
+include { RAXMLNG_EVALUATE } from '../../../modules/nf-core/raxmlng/evaluate/main'
+include { RAXMLNG_MOOSE    } from '../../../modules/nf-core/raxmlng/moose/main'
 include { RAXMLNG_SEARCH   } from '../../../modules/nf-core/raxmlng/search/main'
 
 workflow DIVIDED_TREE_SEARCH {
@@ -39,7 +39,7 @@ workflow DIVIDED_TREE_SEARCH {
                 if (n < 4) {
                     error("The root part of the divided tree for ${meta.id} has fewer than 4 sequences (${n}), too few for model selection: raise --tree_part_reps or name a model with --raxmlng_model.")
                 }
-                [ meta, fasta ]
+                [ meta, fasta, 'DNA' ]
             }
     )
 
