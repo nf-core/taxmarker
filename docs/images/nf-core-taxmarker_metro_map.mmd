@@ -1,40 +1,13 @@
 %%
-%% Source for docs/images/nf-core-taxmarker_metro_map_{light,dark}.svg.
-%% Rendered with nf-metro (https://github.com/pinin4fjords/nf-metro), e.g.:
-%%   pip install nf-metro   # or: conda create -n nf-metro -c bioconda nf-metro
-%%   nf-metro render nf-core-taxmarker_metro_map.mmd --theme nfcore --mode light \
-%%     --embed-font --logo ./nf-core-taxmarker_logo_light.png \
-%%     --no-chrome-css --no-dark-mode-css -o nf-core-taxmarker_metro_map_light.svg
-%%   nf-metro render nf-core-taxmarker_metro_map.mmd --theme nfcore --mode dark \
-%%     --embed-font --logo ./nf-core-taxmarker_logo_dark.png \
-%%     --no-chrome-css --no-dark-mode-css -o nf-core-taxmarker_metro_map_dark.svg
-%% Each render above MUST be followed by a post-process step fixing the legend-box
-%% fill (see IMPORTANT note below) before the file is considered final -- nf-metro
-%% emits `fill="rgba(...)"` BEFORE `class="nf-metro-legend-bg"` on that rect (verify
-%% with `grep -o '<rect[^>]*legend-bg[^>]*>' <file>` if this ever needs revisiting):
-%%   sed -i -E 's/fill="rgba\([^)]*\)"([^>]*class="nf-metro-legend-bg")/fill="#ededed"\1/' \
-%%     nf-core-taxmarker_metro_map_light.svg
-%%   sed -i -E 's/fill="rgba\([^)]*\)"([^>]*class="nf-metro-legend-bg")/fill="#373737"\1/' \
-%%     nf-core-taxmarker_metro_map_dark.svg
-%% --no-chrome-css/--no-dark-mode-css: bakes fully static colours (no CSS
-%% var()/light-dark()) since these are two separate static files, not one
-%% runtime-adaptive SVG -- var()/light-dark() render fine in real browsers but
-%% not in older SVG tooling (e.g. Inkscape), confirmed empirically.
+%% Description of the pipeline's steps, kept current as the pipeline changes.
+%% The published maps, nf-core-taxmarker_metro_map_{light,dark}.svg, are drawn by hand in Inkscape:
+%% update this file with every change of the steps, and redraw if the change is structural.
+%% make_dark_metro_map.py makes the dark SVG from the light one.
 %%
-%% IMPORTANT: nf-metro's own nfcore-light theme correctly specifies a light,
-%% translucent legend/logo box (`rgba(255, 255, 255, 0.8)`) -- but many SVG
-%% renderers/viewers don't reliably support the CSS4 rgba() color function inside an
-%% SVG `fill` attribute and silently fall back to solid black instead of transparent
-%% white. This makes the legend box LOOK like an intentional dark badge (which an
-%% earlier version of this file incorrectly concluded, "fixing" it by swapping to a
-%% dark-variant logo instead) when it's actually a color-parsing bug. Real fix (as of
-%% 2026-08-27): after each nf-metro render, post-process the SVG to replace the
-%% `nf-metro-legend-bg` rect's rgba() fill with the theme's own solid section_fill hex
-%% (#ededed light / #373737 dark, from nf_metro/themes/nfcore.py) -- sidesteps the
-%% parsing gap entirely and gives a normal light-gray (or dark-gray) card matching the
-%% section boxes. With the box correctly light/dark per mode, each render uses its OWN
-%% mode-appropriate logo file (light-variant/dark text for the light render,
-%% dark-variant/light text for the dark render) -- not the same file for both.
+%% To compare with an automatic layout (not committed), render it with nf-metro
+%% (https://github.com/pinin4fjords/nf-metro; pip install nf-metro, or conda create -n nf-metro -c bioconda nf-metro):
+%%   nf-metro render nf-core-taxmarker_metro_map.mmd --theme nfcore --mode light \
+%%     --logo ./nf-core-taxmarker_logo_light.png -o /tmp/nf-core-taxmarker_metro_map_light.svg
 %%
 %% Section layout uses explicit `%%metro grid:` placement (2 rows x 3 cols) rather
 %% than relying on nf-metro's automatic fold-threshold line-wrapping, which produces
@@ -48,6 +21,7 @@
 %%metro line: unaligned | Unaligned input | #E67E22 | dashed
 %%metro line: raxtax_flagged | raxtax-flagged mislabel | #C0392B | dashed
 %%metro line: gtdb | GTDB weight translation | #8E44AD | dashed
+%%metro line: divided | Divided tree search | #2980B9 | dashed
 
 %%metro file: seq_in | FASTA | Sequences
 %%metro file: tax_in | TSV | Taxonomy (optional)
@@ -80,11 +54,19 @@
 %%metro process: profilecover | PROFILECOVER
 %%metro process: raxtax | RAXTAX_PREFILTER:.*
 %%metro process: taxonomytree | SWF_SATIVA:TAXONOMYTREE
-%%metro process: raxmlng | SWF_SATIVA:RAXMLNG_.*
-%%metro process: sativaepang | SWF_SATIVA:SATIVAEPANG
+%%metro process: raxmlng | SWF_SATIVA:.*:RAXMLNG_SEARCH
+%%metro process: treedivide | TREEDIVIDE
+%%metro process: moose | RAXMLNG_MOOSE
+%%metro process: raxmlngparts | DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH
+%%metro process: treegraft | TREEGRAFT
+%%metro process: raxmlngeval | RAXMLNG_EVALUATE
+%%metro process: sepangref | SATIVAEPANG_REFERENCE
+%%metro process: sepangloo | SATIVAEPANG_(LOOTASKS|LOOPLACE|MERGEFOLDS)
+%%metro process: sepangreport | SATIVAEPANG_(LOOSCORE|MISREPORT)
 %%metro process: exportreference | EXPORTREFERENCE
 %%metro process: keepnames | KEEPNAMES
-%%metro process: raxmlngref | TAXONOMY2PHYLOGENY_REFERENCE:RAXMLNG_.*
+%%metro process: raxmlngref | TAXONOMY2PHYLOGENY_REFERENCE:RAXMLNG_SEARCH
+%%metro process: refdivided | TAXONOMY2PHYLOGENY_REFERENCE:DIVIDED_TREE_SEARCH:.*
 %%metro process: multiqc | MULTIQC
 
 graph LR
@@ -128,11 +110,27 @@ graph LR
     subgraph sativa [SATIVA subworkflow]
         taxonomytree[TAXONOMYTREE]
         raxmlng[RAxML-NG]
-        sativaepang[sativa-epang]
+        treedivide[TREEDIVIDE]
+        moose[MOOSE]
+        raxmlngparts[RAxML-NG parts]
+        treegraft[TREEGRAFT]
+        raxmlngeval[RAxML-NG evaluate]
+        sepangref[sativa-epang reference]
+        sepangloo[sativa-epang leave-one-out]
+        sepangreport[sativa-epang mislabel report]
         mislabels_out[ ]
         taxonomytree -->|main| raxmlng
-        raxmlng -->|main| sativaepang
-        sativaepang -->|main| mislabels_out
+        taxonomytree -->|divided| treedivide
+        treedivide -->|divided| moose
+        treedivide -->|divided| raxmlngparts
+        moose -->|divided| raxmlngparts
+        raxmlngparts -->|divided| treegraft
+        treegraft -->|divided| raxmlngeval
+        raxmlng -->|main| sepangref
+        raxmlngeval -->|divided| sepangref
+        sepangref -->|main| sepangloo
+        sepangloo -->|main| sepangreport
+        sepangreport -->|main| mislabels_out
     end
 
     subgraph export [Reference export]
@@ -140,10 +138,13 @@ graph LR
         ref_out[ ]
         keepnames[KEEPNAMES]
         raxmlngref[RAxML-NG]
+        refdivided[DIVIDED_TREE_SEARCH]
         ref_tree_out[ ]
         exportreference -->|main| ref_out
         keepnames -->|main| raxmlngref
+        keepnames -->|divided| refdivided
         raxmlngref -->|main| ref_tree_out
+        refdivided -->|divided| ref_tree_out
     end
 
     subgraph report [Reporting]
@@ -158,6 +159,6 @@ graph LR
     mafft -->|unaligned| gapfilter
     gapfilter -->|main| taxonomytree
     profilecover -->|unaligned| taxonomytree
-    sativaepang -->|main| exportreference
+    sepangreport -->|main| exportreference
     exportreference -->|main| keepnames
     exportreference -->|main| multiqc
