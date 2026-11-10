@@ -170,6 +170,8 @@ nextflow_pipeline {
                 { assert log.contains("ML tree search (simplified)") },
                 { assert log.contains("Model selection") },
                 { assert log.contains("random seed: 42") },
+                // FreeRate models are unstable below 2000 taxa without per-rate scalers, and the model is selected here.
+                { assert log.contains("--rate-scalers on") },
             )
         }
     }
@@ -208,7 +210,10 @@ nextflow_pipeline {
         then {
             assert workflow.success
             def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
-            assert !log.contains("ML tree search (simplified)")
+            assertAll(
+                { assert !log.contains("ML tree search (simplified)") },
+                { assert log.contains("--rate-scalers on") },
+            )
         }
     }
 
