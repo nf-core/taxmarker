@@ -34,6 +34,7 @@ Initial release of nf-core/taxmarker, created with the [nf-core](https://nf-co.r
 
 ### `Changed`
 
+- [#87](https://github.com/nf-core/taxmarker/pull/87) - Template updated to nf-core/tools 4.2.2, which moves the Apptainer setup action of the CI workflows to v3. No pipeline code changes
 - [#83](https://github.com/nf-core/taxmarker/pull/83) - `RAXMLNG_EVALUATE` and `RAXMLNG_MOOSE` come from nf-core/modules instead of local copies, and use the same Wave-built RAxML-NG container as `RAXMLNG_SEARCH`. The data type of the model selection is an input of `RAXMLNG_MOOSE`, no longer a `--data-type` argument.
 - [#81](https://github.com/nf-core/taxmarker/pull/81) - Everything the pipeline produces for use afterwards is in one directory, `export/`: the DADA2 and general FASTA files and name lists, the reference phylogeny of `--run_reference` with its model, alignment, taxonomy and guide tree, which moved from `reference/`, and a copy of the final `user-alignment.mislabels.tsv`. The other directories hold intermediate results
 - [#70](https://github.com/nf-core/taxmarker/pull/70) - Template updated to nf-core/tools 4.2.1, which changes the GitHub Actions and the tool versions used by the CI workflows and the pre-commit hooks. The Seqera Platform launch action of the full-size test is unchanged
