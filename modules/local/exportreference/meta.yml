@@ -1,0 +1,90 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "exportreference"
+description: |
+  Export verified reference sequences as gzipped FASTA, at most N per species for
+  each requested N: one file for DADA2's addSpecies() (">ID Genus species"), one for
+  its assignTaxonomy() (">rank1;rank2;...;species", rank prefixes stripped), and one
+  keeping the original headers. A sequence is exported when its cluster
+  representative is in the verified set and not flagged; within a species,
+  sequences are ranked by weight x length.
+keywords:
+  - export
+  - reference
+  - dada2
+  - taxmarker
+tools:
+  - "biopython":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "https://biopython.org"
+      documentation: "https://biopython.org/wiki/Documentation"
+      tool_dev_url: "https://github.com/biopython/biopython"
+      doi: "10.1093/bioinformatics/btp163"
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - sequences:
+        type: file
+        description: The original input sequences (FASTA, Clustal or PHYLIP, optionally gzipped), before any renaming; gaps are removed on export.
+        pattern: "*"
+    - taxonomy:
+        type: file
+        description: Declared taxonomy of every sequence (seq_name<TAB>rank1;rank2;...), names as rewritten by CHECKNAMECONSISTENCY.
+        pattern: "*.{tax,tsv}"
+    - selection:
+        type: file
+        description: Optional CLUSTERSELECT selection table. Absent -> every sequence is its own representative with weight 1.
+        pattern: "*.selection.tsv"
+    - verified:
+        type: file
+        description: Taxonomy file of the representatives that reached the last check.
+        pattern: "*.{tax,tsv}"
+    - mislabels:
+        type: file
+        description: Optional mislabels table (seq_name column) of representatives flagged at the last check.
+        pattern: "*.tsv"
+  - counts:
+      type: list
+      description: Numbers of sequences per species to export, or the string `all` for no limit, one set of files per number.
+output:
+  addspecies:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - "*.addSpecies.fna.gz":
+          type: file
+          description: Reference for DADA2 addSpecies(), one file per count.
+          pattern: "*.n*.addSpecies.fna.gz"
+  assigntaxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - "*.assignTaxonomy.fna.gz":
+          type: file
+          description: Reference for DADA2 assignTaxonomy(), one file per count.
+          pattern: "*.n*.assignTaxonomy.fna.gz"
+  general:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - "*.general.fna.gz":
+          type: file
+          description: Sequences with their original headers, one file per count.
+          pattern: "*.n*.general.fna.gz"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

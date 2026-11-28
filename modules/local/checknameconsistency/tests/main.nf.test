@@ -1,0 +1,146 @@
+nextflow_process {
+
+    name "Test Process CHECKNAMECONSISTENCY"
+    script "../main.nf"
+    process "CHECKNAMECONSISTENCY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/checknameconsistency"
+
+    test("taxmarker - consistent names, one with punctuation") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'checkname_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.checked[0][1]).text
+            def alignment = path(process.out.checked[0][2]).text
+
+            assertAll(
+                // The punctuation-bearing name is rewritten with underscores in both files
+                { assert taxonomy.contains('SeqB_1_') },
+                { assert alignment.contains('SeqB_1_') },
+                { assert !taxonomy.contains('(') && !taxonomy.contains(')') },
+                // '~' and '#' are rewritten too: IQTREE's own tree-writer silently
+                // replaces almost every non-alphanumeric character with '_', so leaving
+                // any of them as-is here would desync alignment/taxonomy names from the
+                // eventual tree's leaf names downstream.
+                { assert taxonomy.contains('SeqD_2') },
+                { assert alignment.contains('SeqD_2') },
+                { assert taxonomy.contains('SeqE_3') },
+                { assert alignment.contains('SeqE_3') },
+                { assert !taxonomy.contains('~') && !alignment.contains('~') },
+                { assert !taxonomy.contains('#') && !alignment.contains('#') },
+                { assert !alignment.contains('(') && !alignment.contains(')') },
+                // Untouched names pass through unchanged
+                { assert taxonomy.contains('SeqA') },
+                { assert alignment.contains('SeqC') },
+                { assert snapshot(taxonomy, alignment).match("rewritten") },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - name missing from taxonomy fails") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'checkname_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test_missing.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert !process.success
+            assert process.stdout.toString().contains('SeqC') || process.stderr.toString().contains('SeqC')
+        }
+
+    }
+
+    test("taxmarker - extra name in taxonomy fails") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'checkname_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test_extra.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert !process.success
+            assert process.stdout.toString().contains('SeqD') || process.stderr.toString().contains('SeqD')
+        }
+
+    }
+
+    test("taxmarker - names colliding after rewrite fails") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'checkname_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test_collision.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test_collision.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert !process.success
+            assert process.stdout.toString().contains('Foo_A') || process.stderr.toString().contains('Foo_A')
+        }
+
+    }
+
+    test("taxmarker - consistent names, one with punctuation - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'checkname_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkname_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

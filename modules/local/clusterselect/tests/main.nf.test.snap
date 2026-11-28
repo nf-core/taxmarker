@@ -1,0 +1,67 @@
+{
+    "stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.representatives.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.representatives.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.selection.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,846c0557161fbdf25af2ab39f0980d0c"
+                ],
+                "selection": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.selection.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "sequences": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.representatives.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.representatives.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,846c0557161fbdf25af2ab39f0980d0c"
+                ]
+            }
+        ],
+        "timestamp": "2026-09-22T10:04:25.177821297",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}

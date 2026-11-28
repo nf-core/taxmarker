@@ -10,3 +10,17 @@ multiqc/multiqc_plots/{svg,pdf,png}/*.{svg,pdf,png}
 multiqc/multiqc_report.html
 fastqc/*_fastqc.{html,zip}
 pipeline_info/*.{html,json,txt,yml}
+
+# RAxML-NG's own .log echoes its invocation, including staged-input paths under
+# Nextflow's per-run work directory -- differs between separate runs even though the
+# tree/model outputs themselves are reproducible (cpus = 1, see conf/modules.config).
+raxmlng/user-alignment.raxml.log
+
+# refjson embeds its own build invocation (absolute working-directory paths and
+# all) -- not byte-reproducible across runs even with identical content.
+sativaepang/user-alignment.refjson
+
+# Per-fold EPA-ng logs carry "Elapsed Time: Ns", not reproducible across runs
+# on machines of different speed; the fold fastas are already hashed under
+# lootasks/, so nothing is lost by skipping the rest of looplace/'s output.
+sativaepang/looplace/**

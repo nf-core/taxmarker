@@ -19,15 +19,426 @@ nextflow_pipeline {
             def stable_content = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')
             assert workflow.success
             assertAll(
+                // No export was asked for, so there is no export/ directory.
+                { assert !new File("$outputDir/export").exists() },
                 { assert snapshot(
                     // pipeline versions.yml file for multiqc from which Nextflow version is removed because we test pipelines on multiple Nextflow versions
-                    removeNextflowVersion("$outputDir/pipeline_info/nf_core_sativa_software_mqc_versions.yml"),
+                    removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml"),
                     // All stable path name, with a relative path
                     stable_path,
                     // All files with stable contents
                     stable_content
                 ).match() }
             )
+        }
+    }
+
+    test("-profile test, --unresolved_rank_pattern reaches the taxonomy resolution") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_sativa             = true
+                unresolved_rank_pattern = 'Cetobacterium ceti'
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def lines = path("$outputDir/resolvetaxonomy/user-alignment.resolved.tax").readLines()
+
+            assertAll(
+                // The species matching the pattern is trimmed from the end of its lineage ...
+                { assert lines.contains('UnpCCeti\tBacteria;Fusobacteria;Fusobacteriia;Fusobacteriales;Fusobacteriaceae;Cetobacterium') },
+                // ... and the sibling species that does not match keeps its rank.
+                { assert lines.contains('UnpSomer\tBacteria;Fusobacteria;Fusobacteriia;Fusobacteriales;Fusobacteriaceae;Cetobacterium;Cetobacterium somerae') },
+            )
+        }
+    }
+
+    // The two tests below are the same run with the folds split differently, so their
+    // mislabels/summary snapshots must be byte-identical. Clustering is skipped in both:
+    // it isn't what's under test here, and leaving it out keeps them quick.
+    test("-profile test, all folds in one job") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                { assert !new File("$outputDir/sativaepang/mergefolds").exists() },
+                { assert workflow.trace.tasks().findAll { it.name.contains('SATIVAEPANG_LOOPLACE') }*.name == ['NFCORE_TAXMARKER:TAXMARKER:SWF_SATIVA:SATIVAEPANG_LOOPLACE (user-alignment)'] },
+                { assert snapshot(
+                    file("$outputDir/mislabels/user-alignment.mislabels.tsv"),
+                    file("$outputDir/sativaepang/user-alignment.summary.txt")
+                ).match("one_job") }
+            )
+        }
+    }
+
+    test("-profile test, folds split over several jobs") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                folds_per_job   = 10
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                // Above one job the merge runs and the shards are not published,
+                // see conf/modules.config.
+                { assert new File("$outputDir/sativaepang/mergefolds").exists() },
+                // Nextflow still creates the publish directory, but nothing lands in it.
+                { assert !new File("$outputDir/sativaepang/looplace/user-alignment.l1o_tasks").exists() },
+                // Each job's name carries its fold range.
+                { assert workflow.trace.tasks().findAll { it.name.contains('SATIVAEPANG_LOOPLACE') }.every { it.name ==~ /.*\(user-alignment (folds \d+-\d+|fold \d+)\)/ } },
+                { assert workflow.trace.tasks().findAll { it.name.contains('SATIVAEPANG_LOOPLACE') }.size() > 1 },
+                // These two md5s must equal the one_job snapshot above: splitting the
+                // folds cannot change a byte of what comes out.
+                { assert snapshot(
+                    file("$outputDir/mislabels/user-alignment.mislabels.tsv"),
+                    file("$outputDir/sativaepang/user-alignment.summary.txt")
+                ).match("folds_split") }
+            )
+        }
+    }
+
+    test("-profile test, one fold per job names each job after its fold") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                folds_per_job   = 1
+            }
+        }
+
+        then {
+            assert workflow.success
+            def names = workflow.trace.tasks().findAll { it.name.contains('SATIVAEPANG_LOOPLACE') }*.name
+            assertAll(
+                { assert names.size() > 1 },
+                { assert names.every { it ==~ /.*\(user-alignment fold \d+\)/ } },
+                { assert names.toSet().size() == names.size() }
+            )
+        }
+    }
+
+    test("-profile test, fixed raxmlng model skips model selection") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_model   = "GTR+G4"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("--model GTR+G4") },
+                { assert !log.contains("Model selection") },
+            )
+        }
+    }
+
+    test("-profile test, the fast search is the default") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("ML tree search (simplified)") },
+                { assert log.contains("Model selection") },
+                { assert log.contains("random seed: 42") },
+                // FreeRate models are unstable below 2000 taxa without per-rate scalers, and the model is selected here.
+                { assert log.contains("--rate-scalers on") },
+            )
+        }
+    }
+
+    test("-profile test, raxmlng seed together with the fast search") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_fast    = true
+                raxmlng_seed    = 7
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert log.contains("random seed: 7") },
+                { assert log.contains("ML tree search (simplified)") },
+            )
+        }
+    }
+
+    test("-profile test, raxmlng_fast false skips the fast search") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_clustering = true
+                raxmlng_fast    = false
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            assertAll(
+                { assert !log.contains("ML tree search (simplified)") },
+                { assert log.contains("--rate-scalers on") },
+            )
+        }
+    }
+
+    // The commands of the tasks of a process of the divided search.
+    def commands = { workDir, String process ->
+        def found = []
+        new File(workDir.toString()).eachFileRecurse(groovy.io.FileType.FILES) { f ->
+            if (f.name == '.command.run' && f.readLines().find { it.startsWith('### name:') }?.contains(process)) {
+                found << new File(f.parentFile, '.command.sh').text
+            }
+        }
+        found
+    }
+
+    test("-profile test, divided tree search") {
+
+        when {
+            params {
+                outdir                   = "$outputDir"
+                skip_clustering          = true
+                raxmlng_model            = "GTR+G4"
+                run_divided_tree_search  = true
+                tree_part_max_tips       = 15
+                tree_part_min_tips       = 2
+                tree_part_reps           = 3
+                tree_part_outgroups      = 2
+            }
+        }
+
+        then {
+            assert workflow.success
+            def log = new File("$outputDir/raxmlng/user-alignment.raxml.log").text
+            def searches = workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_SEARCH') }
+            def partCommands = commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH')
+            assertAll(
+                // The tree and model that reach the placement step come from the evaluation of the grafted tree.
+                { assert log.contains("--evaluate") },
+                { assert searches.size() > 1 },
+                { assert partCommands.size() > 1 },
+                { assert partCommands.every { c -> c.contains("--fast") } },
+                { assert new File("$outputDir/raxmlng/user-alignment.raxml.bestTree").text.trim().endsWith(";") },
+                { assert new File("$outputDir/raxmlng/user-alignment.raxml.bestModel").text.startsWith("GTR") },
+                { assert new File("$outputDir/mislabels/user-alignment.mislabels.tsv").exists() },
+            )
+        }
+    }
+
+    // Model of the one selection task, read from its work directory.
+    def selected = { workDir ->
+        def found = []
+        new File(workDir.toString()).eachFileRecurse(groovy.io.FileType.FILES) { f -> if (f.name.endsWith('.raxml.moose.bestModel')) { found << f } }
+        assert found.size() == 1
+        found[0].text.split(',')[0].trim()
+    }
+    // The --model of the evaluation commands of the divided search.
+    def evaluated = { workDir ->
+        def models = []
+        new File(workDir.toString()).eachFileRecurse(groovy.io.FileType.FILES) { f ->
+            if (f.name == '.command.run' && f.readLines().find { it.startsWith('### name:') }?.contains('DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE')) {
+                models << (new File(f.parentFile, '.command.sh').text =~ /--model (\S+)/)[0][1]
+            }
+        }
+        models
+    }
+
+    test("-profile test, divided tree search selects the model on the root part") {
+
+        when {
+            params {
+                outdir                   = "$outputDir"
+                skip_clustering          = true
+                run_divided_tree_search  = true
+                tree_part_max_tips       = 15
+                tree_part_min_tips       = 2
+                tree_part_reps           = 3
+                tree_part_outgroups      = 2
+            }
+        }
+
+        then {
+            assert workflow.success
+            def moose = workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_MOOSE') }
+            def searches = workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_SEARCH') }
+            assertAll(
+                { assert moose.size() == 1 },
+                { assert searches.size() > 1 },
+                // The tree and model that reach the placement come from the evaluation under the selected model.
+                { assert evaluated(workDir) == [ selected(workDir) ] },
+                // FreeRate models are numerically unstable below 2000 taxa without per-rate scalers: the selection, every part and the evaluation use them.
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_MOOSE').every { it.contains('--rate-scalers on') } },
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_MOOSE').every { it.contains('--data-type DNA') } },
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH').size() > 1 },
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_SEARCH').every { it.contains('--rate-scalers on') } },
+                { assert commands(workDir, 'DIVIDED_TREE_SEARCH:RAXMLNG_EVALUATE').every { it.contains('--rate-scalers on') } },
+                { assert new File("$outputDir/raxmlng/user-alignment.raxml.bestModel").text.startsWith(selected(workDir).tokenize('+')[0]) },
+                { assert new File("$outputDir/mislabels/user-alignment.mislabels.tsv").exists() },
+            )
+        }
+    }
+
+    test("-profile test, divided tree search selects the model whatever its case") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                raxmlng_model           = "dna"
+                run_divided_tree_search = true
+                tree_part_max_tips      = 15
+                tree_part_min_tips      = 2
+                tree_part_outgroups     = 2
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_MOOSE') }.size() == 1
+        }
+    }
+
+    test("-profile test, divided tree search selects a model for the reference tree too") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                run_reference           = true
+                run_divided_tree_search = true
+                tree_part_max_tips      = 15
+                tree_part_min_tips      = 2
+                tree_part_outgroups     = 2
+            }
+        }
+
+        then {
+            assert workflow.success
+            def moose = workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_MOOSE') }
+            assertAll(
+                { assert moose.size() == 2 },
+                { assert moose.any { it.name.contains('TAXONOMY2PHYLOGENY_REFERENCE') } },
+                { assert new File("$outputDir/export/user-alignment.raxml.bestModel").exists() },
+            )
+        }
+    }
+
+    test("-profile test, divided tree search selects only among DNA models") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                raxmlng_model           = "AUTO"
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join("\n").contains("--run_divided_tree_search selects a model only for DNA")
+        }
+    }
+
+    test("-profile test, divided tree search selects only among DNA models for the reference tree too") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                raxmlng_model           = "GTR+G4"
+                raxmlng_reference_model = "AA"
+                run_reference           = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join("\n").contains("--run_divided_tree_search selects a model only for DNA")
+        }
+    }
+
+    test("-profile test, a missing --sequences is refused") {
+
+        when {
+            params {
+                outdir    = "$outputDir"
+                sequences = null
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join("\n").contains("Missing required parameter(s): sequences")
+        }
+    }
+
+    test("-profile test, an empty model is refused") {
+
+        when {
+            params {
+                outdir        = "$outputDir"
+                raxmlng_model = ""
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).join("\n").contains("--raxmlng_model must not be empty")
+        }
+    }
+
+    test("-profile test, divided tree search without a tree to build warns") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_clustering         = true
+                skip_sativa             = true
+                run_divided_tree_search = true
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert new File("$launchDir/meta/nextflow.log").text.contains("WARN  nextflow.Nextflow - --run_divided_tree_search has no effect")
         }
     }
 }

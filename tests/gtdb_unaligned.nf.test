@@ -1,0 +1,209 @@
+nextflow_pipeline {
+
+    name "Test pipeline with real, unaligned GTDB archaeal 16S data"
+    script "../main.nf"
+    tag "pipeline"
+    profile "test_gtdb_unaligned"
+
+    test("-profile test_gtdb_unaligned") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                // The hmmalign path ran at all (not silently skipped as already-aligned).
+                // hmmfetch publishes under "hmmer" (the pipeline's generic publishDir naming
+                // takes everything before the process name's first underscore), the
+                // concatenated alignment under "alignment".
+                { assert new File("$outputDir/checkaligned").exists() },
+                { assert new File("$outputDir/hmmer").exists() },
+                { assert new File("$outputDir/alignment").exists() },
+                { assert path("$outputDir/alignment/user-alignment.afa").md5 == '6a24de8c4d96af84bdaae6f7d6277f79' },
+                // Same real dataset, same guaranteed positive control, as the pre-aligned
+                // test_gtdb tests -- confirms hmmalign produced a genuinely usable
+                // alignment, not just one that merely completes.
+                { assert mislabels.contains('DupHaloA') },
+                { assert mislabels.contains('DupSulfoA') },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions") },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb_unaligned, aligned in chunks") {
+
+        when {
+            params {
+                outdir           = "$outputDir"
+                skip_sativa      = true
+                align_chunk_size = 20
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER_HMMALIGN') }.size() > 1 },
+                // Same alignment, byte for byte, as the unchunked test above.
+                { assert path("$outputDir/alignment/user-alignment.afa").md5 == '6a24de8c4d96af84bdaae6f7d6277f79' },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb_unaligned, no HMM: aligned with MAFFT") {
+
+        when {
+            params {
+                outdir   = "$outputDir"
+                hmm      = null
+                hmm_name = null
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tasks = workflow.trace.tasks().collect { it.name }
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+            def lines = path("$outputDir/alignment/user-alignment.afa").readLines()
+            def seqLines = lines.findAll { !it.startsWith('>') }
+            def widths = lines.join('\n').split('>').findAll { it.trim() }.collect { it.readLines().drop(1).join('').length() }
+            def excluded = path("$outputDir/gapfilter/user-alignment.excluded.tsv").readLines().size() - 1
+            def scored = (path("$outputDir/sativaepang/user-alignment.summary.txt").text =~ /sequences scored: (\d+)/)[0][1] as int
+
+            assertAll(
+                { assert tasks.any { it.contains('MAFFT_ALIGN') } },
+                { assert !tasks.any { it.contains('HMMER') } },
+                // MAFFT output is filtered by non-gap proportion (like a given alignment), not by profile coverage.
+                { assert tasks.any { it.contains('GAPFILTER') } },
+                { assert !tasks.any { it.contains('PROFILECOVER') } },
+                // The 64 sequences left by clustering and the raxtax prefilter, as in the hmmalign run,
+                // published as one alignment under the same name, with gaps and one width.
+                { assert lines.count { it.startsWith('>') } == 64 },
+                { assert widths.toSet().size() == 1 },
+                { assert seqLines.any { it.contains('-') } },
+                // Placement ran on the MAFFT alignment: what the gap filter kept is what was scored.
+                { assert excluded < 64 },
+                { assert scored == 64 - excluded },
+                // raxtax flags these before alignment, so they are there with or without placement.
+                { assert mislabels.contains('DupHaloA') },
+                { assert mislabels.contains('DupSulfoA') },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb_unaligned, raxtax disabled") {
+
+        when {
+            params {
+                outdir      = "$outputDir"
+                skip_raxtax = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def summary = path("$outputDir/sativaepang/user-alignment.summary.txt").text
+
+            assertAll(
+                // Regression guard for the GAPFILTER-vs-hmmalign bug (HMMER_ESLALIMASK
+                // masks the hmmalign output down to the HMM's match-state columns before
+                // PROFILECOVER sees it -- see ensure_aligned's own test for the column-count
+                // assertion). Without that fix, insert-state-column padding deflated the
+                // non-gap-proportion metric badly enough to lose nearly everything even at
+                // low thresholds. Once measured against match-state columns only, real
+                // coverage splits cleanly bimodal (partial sequences cluster below ~0.80,
+                // essentially complete ones above ~0.90).
+                //
+                // This fixture's 121 real sequences are heavily duplicated per species
+                // (e.g. 29 Haloferax volcanii, 25 Saccharolobus islandicus genomes --
+                // only 10 unique species overall), so WEIGHTED_CLUSTERING's default
+                // (100% identity, uniform weight) collapses most of that duplication to
+                // one representative per (cluster, taxon) before PROFILECOVER even runs
+                // -- the intended effect of nf-core/taxmarker#15, not a regression.
+                // Confirmed stable on this fixture; not hand-derivable like the old
+                // "121 minus N" arithmetic since vsearch's greedy clustering isn't.
+                { assert summary.contains('sequences scored: 49') },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb_unaligned, sativa skipped") {
+
+        when {
+            params {
+                outdir                = "$outputDir"
+                skip_sativa           = true
+                raxtax_filter_rank    = 1
+                raxtax_min_confidence = 0
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
+                { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
+                // raxtax must see full-length sequences: masked (truncated) ones make
+                // Saccharolobus islandicus and S. solfataricus indistinguishable and
+                // inflate this count. Same count as test_gtdb's aligned path.
+                { assert mislabels.readLines().size() - 1 == 7 },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb_unaligned, gapfilter skipped (inactive branch)") {
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                skip_raxtax    = true
+                skip_gapfilter = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def summary = path("$outputDir/sativaepang/user-alignment.summary.txt").text
+
+            assertAll(
+                // Regression guard: --skip_gapfilter is set here for the branch that
+                // ISN'T active (unaligned input with an HMM takes the PROFILECOVER branch;
+                // GAPFILTER would never have run regardless, since it only ever sees
+                // alignment_native). Before the fix, the skipped branch's "else"
+                // fell back to the *unconditional* ch_taxonomy_checked (all 121
+                // sequences) paired with an empty alignment channel -- a cardinality
+                // mismatch that .mix() then let leak through as a second, stray
+                // taxonomy item downstream. Whichever of the resulting two
+                // TAXONOMYTREE invocations happened to finish first could pair with
+                // SWF_SATIVA's one real alignment, sometimes handing IQTREE a
+                // constraint tree built from all 121 taxa against a 96-sequence
+                // alignment -- "Taxon ... in constraint tree does not appear in full
+                // tree". Same expected outcome as the "raxtax disabled" test above
+                // (skip_gapfilter is a no-op for this branch either way) proves the
+                // stray item is gone.
+                { assert summary.contains('sequences scored: 49') },
+            )
+        }
+
+    }
+
+}

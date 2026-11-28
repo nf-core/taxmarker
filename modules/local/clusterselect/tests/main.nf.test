@@ -1,0 +1,214 @@
+nextflow_process {
+
+    name "Test Process CLUSTERSELECT"
+    script "../main.nf"
+    process "CLUSTERSELECT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/clusterselect"
+
+    // A real vsearch --uc file is tiny and entirely generic (10 tab-separated columns;
+    // only columns 1/2/9 -- record type, cluster id, sequence label -- matter here), so
+    // it's constructed inline rather than adding a fixture to test-datasets.
+    test("length-fraction x weight argmax, mixed-taxon cluster, singleton cluster") {
+
+        when {
+            process {
+                """
+                // One vsearch cluster (id 0) deliberately mixes two declared taxa,
+                // since clustering is similarity-only and taxon-agnostic -- exactly
+                // the case (cluster, taxon) grouping exists to handle.
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqLongLowWeight\\td__X;p__A\\n' +
+                    'SeqShortHighWeight\\td__X;p__A\\n' +
+                    'SeqOtherTaxon\\td__X;p__B\\n' +
+                    'SeqSolo\\td__X;p__C\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqLongLowWeight\\n' + ('ACGT' * 25) + '\\n' +
+                    '>SeqShortHighWeight\\n' + ('ACGT' * 12) + 'AC' + '\\n' +
+                    '>SeqOtherTaxon\\n' + ('ACGT' * 20) + '\\n' +
+                    '>SeqSolo\\nACGTACGTAC\\n'
+                def weights = File.createTempFile('test', '.weights.tsv')
+                weights.text = 'SeqLongLowWeight\\t1\\n' + 'SeqShortHighWeight\\t3\\n'
+                def uc = File.createTempFile('test', '.uc.tsv.gz')
+                def gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(uc))
+                gz.write(('S\\t0\\t100\\t*\\t+\\t0\\t0\\t*\\tSeqLongLowWeight\\t*\\n' +
+                    'H\\t0\\t50\\t100.0\\t+\\t0\\t0\\t50M\\tSeqShortHighWeight\\tSeqLongLowWeight\\n' +
+                    'H\\t0\\t80\\t100.0\\t+\\t0\\t0\\t80M\\tSeqOtherTaxon\\tSeqLongLowWeight\\n' +
+                    'S\\t1\\t10\\t*\\t+\\t0\\t0\\t*\\tSeqSolo\\t*\\n').getBytes('UTF-8'))
+                gz.close()
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(uc.toString()), file(weights.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def sequences = path(process.out.sequences[0][1]).text
+            def selection = path(process.out.selection[0][1]).text
+
+            assertAll(
+                // Cluster 0, taxon d__X;p__A: SeqShortHighWeight (50/100 x 3 = 1.5)
+                // beats SeqLongLowWeight (100/100 x 1 = 1.0) despite being the seed.
+                { assert sequences.contains('>SeqShortHighWeight') },
+                { assert !sequences.contains('>SeqLongLowWeight') },
+                // Cluster 0, taxon d__X;p__B: only member, always representative.
+                { assert sequences.contains('>SeqOtherTaxon') },
+                { assert taxonomy.contains('SeqOtherTaxon\td__X;p__B') },
+                // Cluster 1: singleton, always representative.
+                { assert sequences.contains('>SeqSolo') },
+                { assert taxonomy.contains('SeqSolo\td__X;p__C') },
+                { assert !taxonomy.contains('SeqLongLowWeight') },
+                // Both cluster-0 candidates are reported, only one flagged representative.
+                { assert selection.contains('SeqLongLowWeight') },
+                { assert selection.contains('SeqShortHighWeight\t50\t3.000000\t1.500000\tTrue') },
+                { assert selection.contains('SeqLongLowWeight\t100\t1.000000\t1.000000\tFalse') },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("gzipped weight table -- read the same as a plain one") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqLongLowWeight\\td__X;p__A\\n' + 'SeqShortHighWeight\\td__X;p__A\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqLongLowWeight\\n' + ('ACGT' * 25) + '\\n' +
+                    '>SeqShortHighWeight\\n' + ('ACGT' * 12) + 'AC' + '\\n'
+                def weights = File.createTempFile('test', '.weights.tsv.gz')
+                def weights_gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(weights))
+                weights_gz.write(('SeqLongLowWeight\\t1\\n' + 'SeqShortHighWeight\\t3\\n').getBytes('UTF-8'))
+                weights_gz.close()
+                def uc = File.createTempFile('test', '.uc.tsv.gz')
+                def gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(uc))
+                gz.write(('S\\t0\\t100\\t*\\t+\\t0\\t0\\t*\\tSeqLongLowWeight\\t*\\n' +
+                    'H\\t0\\t50\\t100.0\\t+\\t0\\t0\\t50M\\tSeqShortHighWeight\\tSeqLongLowWeight\\n').getBytes('UTF-8'))
+                gz.close()
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(uc.toString()), file(weights.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def sequences = path(process.out.sequences[0][1]).text
+            def selection = path(process.out.selection[0][1]).text
+
+            assertAll(
+                // Without the weights the longer sequence would win; the weight of 3 must have been read.
+                { assert sequences.contains('>SeqShortHighWeight') },
+                { assert !sequences.contains('>SeqLongLowWeight') },
+                { assert selection.contains('SeqShortHighWeight\t50\t3.000000\t1.500000\tTrue') },
+            )
+        }
+
+    }
+
+    test("no weight table -- every sequence defaults to weight 1, longest wins") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqLong\\td__X;p__A\\n' + 'SeqShort\\td__X;p__A\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqLong\\n' + ('ACGT' * 25) + '\\n' + '>SeqShort\\n' + ('ACGT' * 12) + 'AC' + '\\n'
+                def uc = File.createTempFile('test', '.uc.tsv.gz')
+                def gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(uc))
+                gz.write(('S\\t0\\t100\\t*\\t+\\t0\\t0\\t*\\tSeqLong\\t*\\n' +
+                    'H\\t0\\t50\\t100.0\\t+\\t0\\t0\\t50M\\tSeqShort\\tSeqLong\\n').getBytes('UTF-8'))
+                gz.close()
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(uc.toString()), [] ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def sequences = path(process.out.sequences[0][1]).text
+
+            assertAll(
+                { assert sequences.contains('>SeqLong') },
+                { assert !sequences.contains('>SeqShort') },
+            )
+        }
+
+    }
+
+    test("gapped input -- scores by biological length, preserves gapped output content") {
+
+        when {
+            process {
+                """
+                // sequences_in isn't guaranteed unaligned -- SeqPadded has more raw
+                // characters than SeqReal but fewer real bases once gaps are excluded,
+                // so it must still lose on biological length.
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqReal\\td__X;p__A\\n' + 'SeqPadded\\td__X;p__A\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqReal\\n' + ('ACGT' * 25) + '\\n' + '>SeqPadded\\nAC--' + ('-' * 96) + '\\n'
+                def uc = File.createTempFile('test', '.uc.tsv.gz')
+                def gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(uc))
+                gz.write(('S\\t0\\t100\\t*\\t+\\t0\\t0\\t*\\tSeqReal\\t*\\n' +
+                    'H\\t0\\t100\\t100.0\\t+\\t0\\t0\\t100M\\tSeqPadded\\tSeqReal\\n').getBytes('UTF-8'))
+                gz.close()
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(uc.toString()), [] ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def sequences = path(process.out.sequences[0][1]).text
+
+            assertAll(
+                { assert sequences.contains('>SeqReal') },
+                { assert !sequences.contains('>SeqPadded') },
+                // Winning record's own content is untouched (still whatever it was on input).
+                { assert sequences.contains('ACGTACGT') },
+            )
+        }
+
+    }
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqA\\td__X\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqA\\nACGT\\n'
+                def uc = File.createTempFile('test', '.uc.tsv.gz')
+                def gz = new java.util.zip.GZIPOutputStream(new FileOutputStream(uc))
+                gz.write('S\\t0\\t4\\t*\\t+\\t0\\t0\\t*\\tSeqA\\t*\\n'.getBytes('UTF-8'))
+                gz.close()
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(uc.toString()), [] ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

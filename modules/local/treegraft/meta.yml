@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "treegraft"
+description: |
+  Graft the trees searched for the parts made by treedivide into one tree. Each part tree is cut out
+  (rooted on its outgroup) and put in place of the part's representatives in the tree of the parent
+  part, starting from the root part. The command fails if a clade of the constraint tree is not
+  monophyletic in the result.
+keywords:
+  - phylogeny
+  - constraint
+  - divide and conquer
+  - taxmarker
+tools:
+  - "treedivide":
+      description: "Script in the pipeline's bin directory that divides a constrained tree search into parts and grafts the part trees."
+      homepage: "https://github.com/nf-core/taxmarker"
+      documentation: "https://github.com/nf-core/taxmarker"
+      tool_dev_url: "https://github.com/nf-core/taxmarker"
+      doi: ""
+      licence: ["MIT"]
+      identifier: ""
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+    - plan:
+        type: file
+        description: The plan written by treedivide.
+        pattern: "*.plan.json"
+        ontologies:
+          - edam: http://edamontology.org/format_3464 # JSON
+    - results:
+        type: file
+        description: |
+          The searched tree of every part, in any order. A file belongs to a part if its name starts with
+          the part's id and a dot, for example `job_003.raxml.bestTree`.
+        pattern: "*"
+        ontologies:
+          - edam: http://edamontology.org/format_1910 # Newick
+    - constraint:
+        type: file
+        description: The constraint tree given to treedivide.
+        pattern: "*.{nwk,tree}"
+        ontologies:
+          - edam: http://edamontology.org/format_1910 # Newick
+output:
+  tree:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.grafted.nwk":
+          type: file
+          description: The grafted tree in Newick format, with the branch lengths of the part trees.
+          pattern: "*.grafted.nwk"
+          ontologies:
+            - edam: http://edamontology.org/format_1910 # Newick
+  versions_python:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The name of the tool
+      - "python3 --version | sed 's/Python //'":
+          type: eval
+          description: The expression to obtain the version of the tool
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The name of the tool
+      - "python3 --version | sed 's/Python //'":
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

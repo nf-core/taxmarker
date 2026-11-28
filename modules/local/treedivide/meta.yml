@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "treedivide"
+description: |
+  Divide a constrained tree search into independent parts. The parts are chosen bottom-up on a
+  partition tree (the constraint tree unless another tree is given); a part that is closed is
+  represented in its parent by a few tips. Each part gets its alignment and a constraint tree
+  pruned to its tips, and the plan needed to graft the searched part trees back together.
+  The `fasta`, `constraints` and `resolved` outputs are each only written when there are parts of that kind.
+keywords:
+  - phylogeny
+  - constraint
+  - divide and conquer
+  - taxmarker
+tools:
+  - "treedivide":
+      description: "Script in the pipeline's bin directory that divides a constrained tree search into parts and grafts the part trees."
+      homepage: "https://github.com/nf-core/taxmarker"
+      documentation: "https://github.com/nf-core/taxmarker"
+      tool_dev_url: "https://github.com/nf-core/taxmarker"
+      doi: ""
+      licence: ["MIT"]
+      identifier: ""
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+    - alignment:
+        type: file
+        description: Alignment in FASTA format, one sequence per tip of the constraint tree.
+        pattern: "*.{fasta,fa}"
+        ontologies:
+          - edam: http://edamontology.org/format_1929 # FASTA
+    - constraint:
+        type: file
+        description: Constraint tree in Newick format (the taxonomy as a multifurcating tree), without branch lengths.
+        pattern: "*.{nwk,tree}"
+        ontologies:
+          - edam: http://edamontology.org/format_1910 # Newick
+    - partition_tree:
+        type: file
+        description: |
+          Optional tree with the same tips as the constraint tree, for example a phylogeny, used only to
+          choose the parts. Every part it chooses must be a possible clade of the constraint tree, so it
+          must not conflict with it (a phylogeny in which the constraint taxa are monophyletic is fine).
+          Pass an empty list to cut the constraint tree itself.
+        pattern: "*.{nwk,tree}"
+        ontologies:
+          - edam: http://edamontology.org/format_1910 # Newick
+output:
+  fasta:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - parts/*.fasta:
+          type: file
+          description: Alignment of each part to search (`job_NNN.fasta`), including its outgroup sequences.
+          pattern: "parts/*.fasta"
+          ontologies:
+            - edam: http://edamontology.org/format_1929 # FASTA
+  constraints:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - parts/*.nwk:
+          type: file
+          description: Constraint tree of each part to search (`job_NNN.nwk`), with the same tips as the alignment of that part.
+          pattern: "parts/*.nwk"
+          ontologies:
+            - edam: http://edamontology.org/format_1910 # Newick
+  resolved:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - parts/resolved/*.nwk:
+          type: file
+          description: |
+            Tree of each part whose constraint tree is fully resolved (`job_NNN.resolved.nwk`), which RAxML-NG
+            rejects as a constraint and which has nothing left to search. Passed to the graft as the tree of that part.
+          pattern: "parts/resolved/*.nwk"
+          ontologies:
+            - edam: http://edamontology.org/format_1910 # Newick
+  root_fasta:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.root.fasta":
+          type: file
+          description: |
+            Alignment of the root part, the part that holds the representatives of every closed part below it, no
+            outgroups. Written whether or not the root part is searched, for model selection.
+          pattern: "*.root.fasta"
+          ontologies:
+            - edam: http://edamontology.org/format_1929 # FASTA
+  plan:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.plan.json":
+          type: file
+          description: Parts with their size, representatives, outgroup tips, whether they are the root part and whether their tree is fully resolved (not searched).
+          pattern: "*.plan.json"
+          ontologies:
+            - edam: http://edamontology.org/format_3464 # JSON
+  versions_python:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The name of the tool
+      - "python3 --version | sed 's/Python //'":
+          type: eval
+          description: The expression to obtain the version of the tool
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The name of the tool
+      - "python3 --version | sed 's/Python //'":
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

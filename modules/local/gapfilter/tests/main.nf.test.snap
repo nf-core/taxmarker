@@ -1,0 +1,67 @@
+{
+    "taxmarker - default threshold - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.gapfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.gapfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,f0dd2ec8fb52e3e9807bb2301088c20e"
+                ],
+                "alignment": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.gapfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "excluded": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "gapfilter_test"
+                        },
+                        "gapfilter_test.gapfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,f0dd2ec8fb52e3e9807bb2301088c20e"
+                ]
+            }
+        ],
+        "timestamp": "2026-08-01T21:54:47.77348982",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

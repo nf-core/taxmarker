@@ -1,0 +1,52 @@
+{
+    "guide_tree": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "sativa_test"
+                    },
+                    "sativa_test.guide.nwk:md5,d02bbee02826f3322e3833fc86702e44"
+                ]
+            ]
+        ],
+        "timestamp": "2026-07-13T21:25:09.725650743",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "taxmarker - taxonomy tsv - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "sativa_test"
+                        },
+                        "sativa_test.guide.nwk:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,635d7352f408ec6cad288bf588683134"
+                ],
+                "guide_tree": [
+                    [
+                        {
+                            "id": "sativa_test"
+                        },
+                        "sativa_test.guide.nwk:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,635d7352f408ec6cad288bf588683134"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:55:47.606153795",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    }
+}

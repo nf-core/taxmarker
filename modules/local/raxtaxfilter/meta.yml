@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "raxtaxfilter"
+description: |
+  Reduce a raxtax self-classification result to a best hit per query, compare it to the
+  declared taxonomy at a configurable leaf-counted rank, and split the input into a
+  surviving (non-flagged) taxonomy/alignment pair plus a mislabels report for sequences
+  raxtax already found confidently mislabeled -- letting them skip the pipeline's much
+  more expensive EPA-ng-based placement and scoring stage entirely.
+keywords:
+  - taxonomy
+  - raxtax
+  - filtering
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - raxtax_out:
+        type: file
+        description: raxtax's primary result file (one or more candidate lines per query).
+        pattern: "*/raxtax.out"
+    - taxonomy:
+        type: file
+        description: Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - alignment:
+        type: file
+        description: Aligned, labeled sequences in FASTA format (same sequences named in taxonomy).
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_taxonomy:
+          type: file
+          description: Declared taxonomy for sequences NOT flagged by raxtax, same TSV schema as the input.
+          pattern: "*.filtered.tax"
+  alignment:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_alignment:
+          type: file
+          description: Alignment subset to sequences NOT flagged by raxtax.
+          pattern: "*.filtered.fasta"
+  mislabels:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - mislabels_tsv:
+          type: file
+          description: |
+            Sequences raxtax flagged as likely mislabeled (declared and predicted lineage
+            disagree at --filter-rank with at least --min-confidence), in a schema compatible with SATIVASCORE's own
+            mislabels output (seq_name, original_label, predicted_label, lwr,
+            original_label_exclusion, mismatch_rank, method), with
+            original_label_exclusion always NA and method always "raxtax".
+          pattern: "*.mislabels.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

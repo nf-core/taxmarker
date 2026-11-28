@@ -1,0 +1,214 @@
+nextflow_process {
+
+    name "Test Process TREEGRAFT"
+    script "../main.nf"
+    process "TREEGRAFT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/treegraft"
+
+    // Two taxa of four tips. Part job_000 holds a1-a4 (represented in the root part by a1 and a2, with b1 and b2
+    // as outgroup); the root part job_001 holds a1, a2 and b1-b4. Built inline, no fixture.
+    def inputs = """
+        def dir = java.nio.file.Files.createTempDirectory('graft').toFile()
+        def plan = new File(dir, 'test.plan.json')
+        plan.text = '{"jobs": [' +
+            '{"id": "job_000", "n": 4, "reps": ["a1", "a2"], "outgroups": ["b1", "b2"], "root": false},' +
+            '{"id": "job_001", "n": 6, "reps": ["a1", "b1"], "outgroups": [], "root": true}]}'
+        def part = new File(dir, 'job_000.raxml.bestTree')
+        part.text = '(((a1:0.1,a3:0.1):0.1,(a2:0.1,a4:0.1):0.1):0.1,b1:0.1,b2:0.1);\\n'
+        def top = new File(dir, 'job_001.raxml.bestTree')
+        top.text = '((a1:0.1,a2:0.1):0.1,b1:0.1,(b2:0.1,(b3:0.1,b4:0.1):0.1):0.1);\\n'
+        def constraint = new File(dir, 'constraint.nwk')
+        constraint.text = '((a1,a2,a3,a4),(b1,b2,b3,b4));\\n'
+    """
+
+    test("treegraft - part tree replaces its representatives in the root tree") {
+
+        when {
+            process {
+                inputs + """
+                // Listed root first: the order of the result files must not matter.
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(part.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def topology = path(process.out.tree[0][1]).text.replaceAll(/:[0-9.]+/, '')
+
+            assertAll(
+                // a3 and a4 exist only in the part tree.
+                { assert (1..4).every { topology.contains('a' + it) && topology.contains('b' + it) } },
+                { assert topology =~ /\((a1,a3|a3,a1)\)/ },
+                { assert topology =~ /\((a2,a4|a4,a2)\)/ },
+                // The cherry (a1,a2) of the root tree is gone: the part's own topology replaced it.
+                { assert !(topology =~ /\((a1,a2|a2,a1)\)/) },
+                // The root tree's b clade is untouched.
+                { assert topology =~ /\((b3,b4|b4,b3)\)/ }
+            )
+        }
+    }
+
+    test("treegraft - the tree of a part that was not searched has no branch lengths and is grafted like a searched one") {
+
+        when {
+            process {
+                inputs + """
+                def resolved = new File(dir, 'job_000.resolved.nwk')
+                resolved.text = '(((a1,a3),(a2,a4)),b1,b2);\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(resolved.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def topology = path(process.out.tree[0][1]).text.replaceAll(/:[0-9.]+/, '')
+
+            assertAll(
+                { assert (1..4).every { topology.contains('a' + it) && topology.contains('b' + it) } },
+                { assert topology =~ /\((a1,a3|a3,a1)\)/ },
+                { assert topology =~ /\((a2,a4|a4,a2)\)/ }
+            )
+        }
+    }
+
+    test("treegraft - a single root part is passed through") {
+
+        when {
+            process {
+                inputs + """
+                def single = new File(dir, 'single.plan.json')
+                single.text = '{"jobs": [{"id": "job_000", "n": 8, "reps": ["a1", "b1"], "outgroups": [], "root": true}]}'
+                def all = new File(dir, 'job_000.raxml.bestTree')
+                all.text = '((a1:0.1,a2:0.1):0.1,(a3:0.1,a4:0.1):0.1,(b1:0.1,b2:0.1,(b3:0.1,b4:0.1):0.1):0.1);\\n'
+                input[0] = [ [ id:'test' ], file(single.toString()), [ file(all.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.tree[0][1]).text.replaceAll(/:[0-9.]+/, '').contains('(a1,a2)')
+        }
+    }
+
+    test("treegraft - part tree rooted elsewhere is cut at the outgroup") {
+
+        when {
+            process {
+                inputs + """
+                // The searched tree is rooted inside the a clade: a1-a4 is a node only when rooted above b1.
+                part.text = '(a1:0.1,(a3:0.1,((a2:0.1,a4:0.1):0.1,(b1:0.1,b2:0.1):0.1):0.1):0.1);\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(part.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def topology = path(process.out.tree[0][1]).text.replaceAll(/:[0-9.]+/, '')
+
+            assertAll(
+                { assert (1..4).every { topology.contains('a' + it) && topology.contains('b' + it) } },
+                { assert topology =~ /\((a1,a3|a3,a1)\)/ },
+                { assert topology =~ /\((a2,a4|a4,a2)\)/ },
+                { assert topology =~ /\((b3,b4|b4,b3)\)/ }
+            )
+        }
+    }
+
+    test("treegraft - a unary node in the constraint tree is not a broken clade") {
+
+        when {
+            process {
+                inputs + """
+                constraint.text = '(((a1),a2,a3,a4),(b1,b2,b3,b4));\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(part.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+        }
+    }
+
+    test("treegraft - a clade of all tips but one is not a broken clade") {
+
+        when {
+            process {
+                inputs + """
+                // The root tree puts b4 inside (b3,b4), so a1-a4 plus b1-b3 is no node; its complement is one tip.
+                constraint.text = '(((a1,a2,a3,a4),b1,b2,b3),b4);\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(part.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+        }
+    }
+
+    test("treegraft - fails when the grafted tree breaks a clade of the constraint tree") {
+
+        when {
+            process {
+                inputs + """
+                // (a1,a2,a3) is not a clade in the part tree, where a1 pairs with a3 and a2 with a4.
+                constraint.text = '((a1,a2,a3),a4,(b1,b2,b3,b4));\\n'
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(part.toString()), file(top.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.errorReport.contains('clades of the constraint tree are not monophyletic')
+        }
+    }
+
+    test("treegraft - fails when a part has no tree") {
+
+        when {
+            process {
+                inputs + """
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.errorReport.contains('Expected one tree for job_000, found 0')
+        }
+    }
+
+    test("treegraft - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                inputs + """
+                input[0] = [ [ id:'test' ], file(plan.toString()), [ file(top.toString()), file(part.toString()) ], file(constraint.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert process.out.versions_python[0][0] == 'TREEGRAFT'
+            assert snapshot(process.out.tree).match()
+        }
+    }
+
+}

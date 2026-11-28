@@ -1,0 +1,45 @@
+{
+    "raxtax_fasta": {
+        "content": [
+            ">UnpCCeti;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Cetobacterium,Cetobacterium ceti;\nGAGAGTTT\n>UnpSomer;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Cetobacterium,Cetobacterium somerae;\nAAGAGTTT\n>UpbRectu;tax=Bacteria,Firmicutes,Clostridia,Clostridiales,Clostridiaceae,Clostridium,Clostridium rectum;\nNNNNNNGAGAGTTT\n>UxjAloci;tax=Bacteria,Firmicutes,Clostridia,Clostridiales,Peptostreptococcaceae,Filifactor,Filifactor alocis;\nT\n>UyvCanif;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium canifelinum;\nC\n>UyvEquin;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium equinum;\nTGAGTTT\n>UyvGonid;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium gonidiaformans;\nG\n>UyvMorti;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium mortiferum;\nCTT\n>UyvNecro;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium necrogenes;\nTTT\n>UyvNecr2;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium necrophorum subsp. funduliforme;\nCAGAGTTT\n>UyvNecr3;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium necrophorum subsp. necrophorum;\nATTT\n>UyvNucle;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium nucleatum subsp. animalis;\nA\n>UyvNucl2;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium nucleatum subsp. fusiforme;\nAA\n>UyvNucl3;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium nucleatum subsp. nucleatum;\nTAAATAAGATAGCAAAGATGAGCTATTAAAAAGATTGAACGAAGAGTTT\n>UyvNucl4;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium nucleatum subsp. polymorphum;\nTGAACGAAGAGTTT\n>UyvNucl5;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium nucleatum subsp. vincentii;\nAATTAAAGATAGCAAAATGAGCTATAAGAAAAGATTGAACGAAGAGTTT\n>UyvPerfo;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium perfoetens;\nNTTTAATGAAGAGTTT\n>UyvPerio;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium periodonticum;\nCC\n>UyvRussi;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium russii;\nNNGAACGAAGAGTTT\n>UyvSimia;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium simiae;\nNCTGAACGAAGAGTTT\n>UyvUlcer;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium ulcerans;\nTT\n>UyvVariu;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Fusobacterium,Fusobacterium varium;\nTTT\n>VejInsue;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Ilyobacter,Ilyobacter insuetus;\nTAGAGTTT\n>VejPolyt;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Ilyobacter,Ilyobacter polytropus;\nTAGAGTTT\n>VejTarta;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Ilyobacter,Ilyobacter tartaricus;\nTAGAGTTT\n>VikBucca;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia buccalis;\nTAGAGTTT\n>VikGoodf;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia goodfellowii;\nTAGAGTTT\n>VikHofst;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia hofstadii;\nCGAGTTT\n>VikSpeci;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia hongkongensis;\nGG\n>VikShahi;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia shahii;\nGAGTTT\n>VikTrevi;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia trevisanii;\nTAGAGTT\n>VikWadei;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Leptotrichia,Leptotrichia wadei;\nGGAGTTT\n>VxsMaris;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Propionigenium,Propionigenium maris;\nAAA\n>VxsModes;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Propionigenium,Propionigenium modestum;\nNNNNAATGAAGAGTTT\n>VzeAtlan;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Psychrilyobacter,Psychrilyobacter atlanticus;\nCCC\n>WekTermi;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Sebaldella,Sebaldella termitidis;\nTAGAGTTT\n>WgeSangu;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Sneathia,Sneathia sanguinegens;\nGGG\n>WicMonil;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Streptobacillus(t),Streptobacillus moniliformis;\nAGAGTTT\n>DupSeq01;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Streptobacillus(t),DupSpecies1;\nAAAAAAA\n>DupSeq02;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Leptotrichiaceae,Streptobacillus(t),DupSpecies[2];\nAAAAAAA\n"
+        ],
+        "timestamp": "2026-08-01T10:39:38.574936796",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "taxmarker - aligned gappy fasta - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "sativa_test"
+                        },
+                        "sativa_test.raxtax.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,6ef0b28cff899aba43e9c4282dfa40c5"
+                ],
+                "fasta": [
+                    [
+                        {
+                            "id": "sativa_test"
+                        },
+                        "sativa_test.raxtax.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,6ef0b28cff899aba43e9c4282dfa40c5"
+                ]
+            }
+        ],
+        "timestamp": "2026-08-01T09:38:55.549632002",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

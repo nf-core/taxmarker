@@ -1,0 +1,33 @@
+Changes in component 'nf-core/hmmer/eslalimask'
+'modules/nf-core/hmmer/eslalimask/environment.yml' is unchanged
+Changes in 'hmmer/eslalimask/main.nf':
+--- modules/nf-core/hmmer/eslalimask/main.nf
++++ modules/nf-core/hmmer/eslalimask/main.nf
+@@ -34,6 +34,10 @@
+     def gmask_allarg = gmask_all ? "--gmask-all ${prefix}.gmask-all" : ""
+     def pmask_rfarg  = pmask_rf  ? "--pmask-rf ${prefix}.pmask-rf"   : ""
+     def pmask_allarg = pmask_all ? "--pmask-all ${prefix}.pmask-all" : ""
++    // maskfile is optional: --rf-is-mask (and -g/-p) derive the mask from the
++    // alignment itself and take no separate maskfile argument at all, unlike
++    // the tool's other usage form (a maskfile listing explicit columns/rows).
++    def maskfile_arg = maskfile ? "${maskfile}" : ''
+     """
+     esl-alimask \\
+         $fmask_rfarg \\
+@@ -43,7 +47,7 @@
+         $pmask_rfarg \\
+         $pmask_allarg \\
+         -o ${prefix}.masked.sthlm \\
+-        $args $unmaskedaln $maskfile
++        $args $unmaskedaln $maskfile_arg
+ 
+     gzip ${prefix}.*mask*
+     """
+
+'modules/nf-core/hmmer/eslalimask/meta.yml' is unchanged
+'modules/nf-core/hmmer/eslalimask/tests/main.nf.test' is unchanged
+'modules/nf-core/hmmer/eslalimask/tests/main.nf.test.snap' is unchanged
+'modules/nf-core/hmmer/eslalimask/tests/nextflow.config' is unchanged
+'modules/nf-core/hmmer/eslalimask/.conda-lock/linux_arm64-bd-dba1a582dd6d0e9e_1.txt' is unchanged
+'modules/nf-core/hmmer/eslalimask/.conda-lock/linux_amd64-bd-ab3efa7c16f46920_1.txt' is unchanged
+************************************************************

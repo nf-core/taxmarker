@@ -1,0 +1,119 @@
+nextflow_process {
+
+    name "Test Process GAPFILTER"
+    script "../main.nf"
+    process "GAPFILTER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/gapfilter"
+
+    test("taxmarker - pipeline default threshold (0.3)") {
+
+        // No local config override: exercises conf/modules.config's real
+        // `ext.args = "--min-nongap ${params.min_nongap}"`, i.e. the pipeline's
+        // actual default of 0.3 (kept low since a taxonomically broad reference
+        // alignment is naturally wide -- see nextflow_schema.json's help_text).
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'gapfilter_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def alignment = path(process.out.alignment[0][1]).text
+            def excluded  = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                // SeqGood1 (1.0), SeqGood2 (0.8) and SeqBad1 (exactly 0.3, the
+                // default threshold -- >= not >) all clear the bar and are kept.
+                { assert taxonomy.contains('SeqGood1') },
+                { assert taxonomy.contains('SeqGood2') },
+                { assert taxonomy.contains('SeqBad1') },
+                { assert alignment.contains('>SeqGood1') },
+                { assert alignment.contains('>SeqGood2') },
+                { assert alignment.contains('>SeqBad1') },
+                // Only SeqBad2 (0.0) falls below it, dropped from both the
+                // surviving taxonomy/alignment...
+                { assert !taxonomy.contains('SeqBad2') },
+                { assert !alignment.contains('>SeqBad2') },
+                // ...but reported, not silently discarded.
+                { assert excluded.contains('SeqBad2') },
+                { assert !excluded.contains('SeqBad1') },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - strict threshold (0.8) drops SeqBad1 too") {
+
+        config "./nextflow.config"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'gapfilter_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+            def excluded = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                // At 0.8, SeqBad1 (0.3 non-gap) no longer clears the bar either...
+                { assert !taxonomy.contains('SeqBad1') },
+                // ...same as SeqBad2 (0.0 non-gap), which never can regardless.
+                { assert !taxonomy.contains('SeqBad2') },
+                { assert excluded.contains('SeqBad1') },
+                { assert excluded.contains('SeqBad2') },
+            )
+        }
+
+    }
+
+    test("taxmarker - default threshold - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'gapfilter_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

@@ -1,4 +1,4 @@
-# nf-core/sativa: Citations
+# nf-core/taxmarker: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 
@@ -10,13 +10,45 @@
 
 ## Pipeline tools
 
-- [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-
-> Andrews, S. (2010). FastQC: A Quality Control Tool for High Throughput Sequence Data [Online].
-
 - [MultiQC](https://pubmed.ncbi.nlm.nih.gov/27312411/)
 
 > Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics. 2016 Oct 1;32(19):3047-8. doi: 10.1093/bioinformatics/btw354. Epub 2016 Jun 16. PubMed PMID: 27312411; PubMed Central PMCID: PMC5039924.
+
+- [HMMER](https://pubmed.ncbi.nlm.nih.gov/22039361/)
+
+> Eddy SR. Accelerated Profile HMM Searches. PLoS Comput Biol. 2011 Oct 20;7(10):e1002195. doi: 10.1371/journal.pcbi.1002195. PubMed PMID: 22039361.
+
+- [MAFFT](https://pubmed.ncbi.nlm.nih.gov/23329690/)
+
+> Katoh K, Standley DM. MAFFT multiple sequence alignment software version 7: improvements in performance and usability. Mol Biol Evol. 2013 Apr;30(4):772-80. doi: 10.1093/molbev/mst010. PubMed PMID: 23329690.
+
+- [raxtax](https://pubmed.ncbi.nlm.nih.gov/41259660/)
+
+> Wahl NA, Koutsovoulos G, Bettisworth B, Stamatakis A. raxtax: a k-mer-based non-Bayesian taxonomic classifier. Bioinformatics. 2025 Dec;41(12):btaf620. doi: 10.1093/bioinformatics/btaf620. PubMed PMID: 41259660.
+
+- [RAxML-NG](https://pubmed.ncbi.nlm.nih.gov/31070718/)
+
+> Kozlov AM, Darriba D, Flouri T, Morel B, Stamatakis A. RAxML-NG: a fast, scalable and user-friendly tool for maximum likelihood phylogenetic inference. Bioinformatics. 2019 Nov 1;35(21):4453-4455. doi: 10.1093/bioinformatics/btz305. PubMed PMID: 31070718.
+
+- [EPA-ng](https://pubmed.ncbi.nlm.nih.gov/30165689/)
+
+> Barbera P, Kozlov AM, Czech L, Morel B, Darriba D, Flouri T, Stamatakis A. EPA-ng: Massively Parallel Evolutionary Placement of Genetic Sequences. Syst Biol. 2019 Mar 1;68(2):365-369. doi: 10.1093/sysbio/syy054. PubMed PMID: 30165689.
+
+- [sativa-epang](https://github.com/Aaramis/sativa-epang)
+
+> Consolidated leave-one-out placement and scoring wrapper around RAxML-NG and EPA-ng, used by this pipeline's `sativaepang/*` modules.
+
+- [VSEARCH](https://pubmed.ncbi.nlm.nih.gov/27781170/)
+
+> Rognes T, Flouri T, Nichols B, Quince C, Mahé F. VSEARCH: a versatile open source tool for metagenomics. PeerJ. 2016 Oct 18;4:e2584. doi: 10.7717/peerj.2584. PubMed PMID: 27781170.
+
+- [EMBOSS](https://pubmed.ncbi.nlm.nih.gov/10827456/)
+
+> Rice P, Longden I, Bleasby A. EMBOSS: the European Molecular Biology Open Software Suite. Trends Genet. 2000 Jun;16(6):276-7. doi: 10.1016/s0168-9525(00)02024-2. PubMed PMID: 10827456.
+
+- [SeqKit](https://pubmed.ncbi.nlm.nih.gov/27706213/)
+
+> Shen W, Le S, Li Y, Hu F. SeqKit: A Cross-Platform and Ultrafast Toolkit for FASTA/Q File Manipulation. PLoS One. 2016 Oct 5;11(10):e0163962. doi: 10.1371/journal.pone.0163962. PubMed PMID: 27706213; PubMed Central PMCID: PMC5051824.
 
 ## Software packaging/containerisation tools
 

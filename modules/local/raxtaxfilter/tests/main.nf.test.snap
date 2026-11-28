@@ -1,0 +1,90 @@
+{
+    "taxmarker - default rank - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.filtered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.filtered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.mislabels.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,7926140ad3b6826c1bcb8078f3441df0"
+                ],
+                "alignment": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.filtered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "mislabels": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.mislabels.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "raxtaxfilter_test"
+                        },
+                        "raxtaxfilter_test.filtered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,7926140ad3b6826c1bcb8078f3441df0"
+                ]
+            }
+        ],
+        "timestamp": "2026-08-01T10:27:48.544733515",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "default_rank": {
+        "content": [
+            "seq_name\toriginal_label\tpredicted_label\tlwr\toriginal_label_exclusion\tmismatch_rank\tmethod\nSeqSevereMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\tBacteria;PhylumB;ClassB;GenusB;SpeciesB1\t0.950000\tNA\t5\traxtax\n",
+            "SeqOK\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\nSeqSpeciesMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA2\n",
+            ">SeqOK\nGCTAAAGACAATTACATAACATACACGTCAGCACGAAACTTGTTGGCCC\n>SeqSpeciesMismatch\nGATGCATACGCCTTTACTTGCTGTGTCCACCCCATCGGACTGGCATTTT\n"
+        ],
+        "timestamp": "2026-10-22T12:07:39.166680066",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
+        }
+    },
+    "coarse_rank": {
+        "content": [
+            "seq_name\toriginal_label\tpredicted_label\tlwr\toriginal_label_exclusion\tmismatch_rank\tmethod\nSeqSevereMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\tBacteria;PhylumB;ClassB;GenusB;SpeciesB1\t0.950000\tNA\t4\traxtax\n",
+            "SeqOK\tBacteria;PhylumA;ClassA;GenusA;SpeciesA1\nSeqSpeciesMismatch\tBacteria;PhylumA;ClassA;GenusA;SpeciesA2\n"
+        ],
+        "timestamp": "2026-10-22T12:07:49.283902897",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
+        }
+    }
+}

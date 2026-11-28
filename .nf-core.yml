@@ -1,22 +1,27 @@
-repository_type: pipeline
-
-nf_core_version: 4.0.2
-
 lint:
   files_exist:
     - conf/igenomes.config
     - conf/igenomes_ignored.config
-
+  files_unchanged:
+    - assets/nf-core-taxmarker_logo_light.png
+    - docs/images/nf-core-taxmarker_logo_light.png
+    - docs/images/nf-core-taxmarker_logo_dark.png
+  nextflow_config:
+    - params.input
+    - manifest.diagram
+nf_core_version: 4.2.2
+repository_type: pipeline
 template:
-  org: nf-core
-  name: sativa
+  author: Daniel Lundin
   description: This pipeline checks sequences for their phylogenetic signal against
     their taxonomy
-  author: Daniel Lundin
-  version: 1.0.0dev
-  force: true
+  force: false
+  is_nfcore: true
+  name: taxmarker
+  org: nf-core
   outdir: .
   skip_features:
     - igenomes
     - gpu
-  is_nfcore: true
+    - fastqc
+  version: 1.0.0

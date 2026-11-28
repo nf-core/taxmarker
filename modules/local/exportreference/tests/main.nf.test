@@ -1,0 +1,315 @@
+nextflow_process {
+
+    name "Test Process EXPORTREFERENCE"
+    script "../main.nf"
+    process "EXPORTREFERENCE"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/exportreference"
+
+    test("weight x length ranking, verdicts inherited by cluster members") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_fixture")
+                dir.mkdirs()
+                def X = 'd__Bacteria;p__P;c__C;o__O;f__F;g__Gx;s__Gx alpha'
+                def Y = 'd__Bacteria;p__P;c__C;o__O;f__F;g__Hy;s__beta'
+                def names = ['X_C', 'X_A', 'X_B', 'X_M', 'X_F', 'X_Fm', 'X_U', 'X_Um', 'Y_1']
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = names.collect { n -> ">RS_\${n.replace('_', '~')} original description of \${n}\\nAC-GT\\n" }.join('')
+                def tax = file("\${dir}/checked.tax")
+                tax.text = names.collect { n -> "RS_\${n}\\t\${n.startsWith('Y') ? Y : X}\\n" }.join('')
+                def sel = file("\${dir}/selection.tsv")
+                sel.text = 'cluster_id\\ttaxon\\tseq_name\\tlength\\tweight\\tscore\\tis_representative\\n' + [
+                    // weight x length: X_C 225 > X_A 200 > X_M 190 > X_B 160.
+                    // Weight alone would rank X_A first, length alone X_B.
+                    [1, X, 'RS_X_C',  150, 1.5, 'True'],
+                    [2, X, 'RS_X_A',  100, 2.0, 'True'],
+                    [2, X, 'RS_X_M',  100, 1.9, 'False'],
+                    [3, X, 'RS_X_B',  160, 1.0, 'True'],
+                    // Flagged representative: it and its member are out.
+                    [4, X, 'RS_X_F',  200, 5.0, 'True'],
+                    [4, X, 'RS_X_Fm', 200, 5.0, 'False'],
+                    // Representative dropped before the last step: unverified, out.
+                    [5, X, 'RS_X_U',  200, 5.0, 'True'],
+                    [5, X, 'RS_X_Um', 200, 5.0, 'False'],
+                    [6, Y, 'RS_Y_1',  100, 1.0, 'True'],
+                ].collect { c, t, n, l, w, r -> "\${c}\\t\${t}\\t\${n}\\t\${l}\\t\${w}\\t0\\t\${r}\\n" }.join('')
+                def verified = file("\${dir}/verified.tax")
+                verified.text = ['X_C', 'X_A', 'X_B', 'X_F', 'Y_1'].collect { n -> "RS_\${n}\\t\${n.startsWith('Y') ? Y : X}\\n" }.join('')
+                def mis = file("\${dir}/mislabels.tsv")
+                mis.text = 'seq_name\\toriginal_label\\tpredicted_label\\tlwr\\toriginal_label_exclusion\\tmismatch_rank\\tmethod\\n' +
+                    "RS_X_F\\t\${X}\\t\${Y}\\t1.0\\t1.0\\t7\\tsativa\\n"
+                input[0] = [ [ id:'export_test' ], seqs, tax, sel, verified, mis ]
+                input[1] = [ 1, 3, 'all' ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def read = { name -> path(process.out.general[0][1].find { it.toString().endsWith(name) }).linesGzip }
+            def readAs = { ch, name -> path(ch[0][1].find { it.toString().endsWith(name) }).linesGzip }
+            def general1 = read('.n1.general.fna.gz')
+            def general3 = read('.n3.general.fna.gz')
+            def generalAll = read('.all.general.fna.gz')
+            def names = { label -> path(process.out.names[0][1].find { it.toString().endsWith(".${label}.names.txt") }).readLines() }
+            def add1     = readAs(process.out.addspecies, '.n1.addSpecies.fna.gz')
+            def assign1  = readAs(process.out.assigntaxonomy, '.n1.assignTaxonomy.fna.gz')
+
+            assertAll(
+                // Top 1 of species X by weight x length, and the only one of Y.
+                { assert general1.findAll { it.startsWith('>') } == [
+                    '>RS_X~C original description of X_C',
+                    '>RS_Y~1 original description of Y_1',
+                ] },
+                // Top 3: the member X_M inherits its representative's verdict.
+                { assert general3.findAll { it.startsWith('>') }.collect { it.tokenize(' ')[0] } == [
+                    '>RS_X~C', '>RS_X~A', '>RS_X~M', '>RS_Y~1',
+                ] },
+                // The names files list the same sequences as the FASTA files, as named in
+                // the checked taxonomy and alignment.
+                { assert names('n1') == [ 'RS_X_C', 'RS_Y_1' ] },
+                { assert names('n3') == [ 'RS_X_C', 'RS_X_A', 'RS_X_M', 'RS_Y_1' ] },
+                // All: every verified sequence, none of the flagged or unverified ones.
+                { assert generalAll.findAll { it.startsWith('>') }.collect { it.tokenize(' ')[0] } == [
+                    '>RS_X~C', '>RS_X~A', '>RS_X~M', '>RS_X~B', '>RS_Y~1',
+                ] },
+                { assert names('all') == [ 'RS_X_C', 'RS_X_A', 'RS_X_M', 'RS_X_B', 'RS_Y_1' ] },
+                { assert general1[1] == 'ACGT' },
+                // A species name not starting with its genus gets the genus prepended.
+                { assert add1.findAll { it.startsWith('>') } == [ '>RS_X~C Gx alpha', '>RS_Y~1 Hy beta' ] },
+                { assert assign1.findAll { it.startsWith('>') } == [
+                    '>Bacteria;P;C;O;F;Gx;Gx alpha;',
+                    '>Bacteria;P;C;O;F;Hy;beta;',
+                ] },
+            )
+        }
+
+    }
+
+    test("a cluster member never outranks its own representative on a tie") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_tie")
+                dir.mkdirs()
+                def T = 'd__Bacteria;p__P;g__Gt;s__Gt tie'
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = ['T_a', 'T_b'].collect { n -> ">\${n}\\nACGT\\n" }.join('')
+                def tax = file("\${dir}/checked.tax")
+                tax.text = ['T_a', 'T_b'].collect { n -> "\${n}\\t\${T}\\n" }.join('')
+                def sel = file("\${dir}/selection.tsv")
+                // Same weight and length; T_a sorts first by name but T_b is the representative.
+                sel.text = 'cluster_id\\ttaxon\\tseq_name\\tlength\\tweight\\tscore\\tis_representative\\n' +
+                    "1\\t\${T}\\tT_a\\t100\\t1.0\\t0\\tFalse\\n" +
+                    "1\\t\${T}\\tT_b\\t100\\t1.0\\t0\\tTrue\\n"
+                input[0] = [ [ id:'export_test' ], seqs, tax, sel, tax, [] ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.names[0][1]).readLines() == [ 'T_b' ]
+        }
+
+    }
+
+    test("a member within rounding of its representative does not outrank it") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_near")
+                dir.mkdirs()
+                def T = 'd__Bacteria;p__P;g__Gt;s__Gt tie'
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = ['T_a', 'T_b'].collect { n -> ">\${n}\\nACGT\\n" }.join('')
+                def tax = file("\${dir}/checked.tax")
+                tax.text = ['T_a', 'T_b'].collect { n -> "\${n}\\t\${T}\\n" }.join('')
+                def sel = file("\${dir}/selection.tsv")
+                // selection.tsv rounds weights to 6 decimals, so a member can end up a hair above
+                // the representative that was chosen on the unrounded values.
+                sel.text = 'cluster_id\\ttaxon\\tseq_name\\tlength\\tweight\\tscore\\tis_representative\\n' +
+                    "1\\t\${T}\\tT_a\\t100\\t1.000004\\t0\\tFalse\\n" +
+                    "1\\t\${T}\\tT_b\\t100\\t1.0\\t0\\tTrue\\n"
+                input[0] = [ [ id:'export_test' ], seqs, tax, sel, tax, [] ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.names[0][1]).readLines() == [ 'T_b' ]
+        }
+
+    }
+
+    test("a member never outranks its representative through weight rounding at 16S length") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_long")
+                dir.mkdirs()
+                def T = 'd__Bacteria;p__P;g__Gt;s__Gt long'
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = ">T_rep\\n\${'A' * 1469}\\n>T_mem\\n\${'A' * 1466}\\n"
+                def tax = file("\${dir}/checked.tax")
+                tax.text = ['T_rep', 'T_mem'].collect { n -> "\${n}\\t\${T}\\n" }.join('')
+                def sel = file("\${dir}/selection.tsv")
+                // The member's unrounded weight is 1469/1466 = 1.0020464..., so the representative
+                // wins on the unrounded scores. The 6-decimal weight 1.002047 puts the member 0.0009
+                // above it, more than the 3-decimal rounding of the score hides.
+                sel.text = 'cluster_id\\ttaxon\\tseq_name\\tlength\\tweight\\tscore\\tis_representative\\n' +
+                    "1\\t\${T}\\tT_rep\\t1469\\t1.0\\t0\\tTrue\\n" +
+                    "1\\t\${T}\\tT_mem\\t1466\\t1.002047\\t0\\tFalse\\n"
+                input[0] = [ [ id:'export_test' ], seqs, tax, sel, tax, [] ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert path(process.out.names[0][1]).readLines() == [ 'T_rep' ]
+        }
+
+    }
+
+    test("without clustering: every sequence is its own representative, ranked by length") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_noclust")
+                dir.mkdirs()
+                def Z = 'd__Bacteria;p__P;g__Gz;s__Gz zeta'
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = '>Z_short\\nACGT\\n>Z_long\\nACGTACGT\\n>Z_flagged\\nACGTACGTACGT\\n'
+                def tax = file("\${dir}/checked.tax")
+                tax.text = ['Z_short', 'Z_long', 'Z_flagged'].collect { n -> "\${n}\\t\${Z}\\n" }.join('')
+                def mis = file("\${dir}/mislabels.tsv")
+                mis.text = 'seq_name\\toriginal_label\\tpredicted_label\\tlwr\\toriginal_label_exclusion\\tmismatch_rank\\tmethod\\n' +
+                    "Z_flagged\\t\${Z}\\t\${Z}\\t1.0\\t1.0\\t4\\tsativa\\n"
+                input[0] = [ [ id:'export_test' ], seqs, tax, [], tax, mis ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def general1 = path(process.out.general[0][1]).linesGzip
+            assert general1.findAll { it.startsWith('>') } == [ '>Z_long' ]
+        }
+
+    }
+
+    test("taxa without genus and species are left out of addSpecies only") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_ranks")
+                dir.mkdirs()
+                def taxa = [
+                    OK:     'd__Bacteria;f__F;g__Gz;s__Gz zeta',
+                    EMPTYS: 'd__Bacteria;f__F;g__Gz;s__',
+                    GENUS:  'd__Bacteria;f__F;g__Gz',
+                    SINGLE: 'Bacteria',
+                ]
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = taxa.keySet().collect { n -> ">\${n}\\nACGT\\n" }.join('')
+                def tax = file("\${dir}/checked.tax")
+                tax.text = taxa.collect { n, t -> "\${n}\\t\${t}\\n" }.join('')
+                input[0] = [ [ id:'export_test' ], seqs, tax, [], tax, [] ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def ids = { ch -> path(ch[0][1]).linesGzip.findAll { it.startsWith('>') } }
+            assertAll(
+                { assert ids(process.out.general).size() == 4 },
+                { assert ids(process.out.addspecies) == [ '>OK Gz zeta' ] },
+            )
+        }
+
+    }
+
+    test("prefix-less lineages shorter than the deepest one are not given a species name") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/exportreference_prefixless")
+                dir.mkdirs()
+                def taxa = [
+                    OK:      'Bacteria;Phylum;Family;Gx;Gx one',
+                    TRIMMED: 'Bacteria;Phylum;Family;Gy',
+                    HIGHER:  'Bacteria;Phylum;Family',
+                ]
+                def seqs = file("\${dir}/input.fna")
+                seqs.text = taxa.keySet().collect { n -> ">\${n}\\nACGT\\n" }.join('')
+                def tax = file("\${dir}/checked.tax")
+                tax.text = taxa.collect { n, t -> "\${n}\\t\${t}\\n" }.join('')
+                input[0] = [ [ id:'export_test' ], seqs, tax, [], tax, [] ]
+                input[1] = [ 1 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def ids = { ch -> path(ch[0][1]).linesGzip.findAll { it.startsWith('>') } }
+            assertAll(
+                // Every sequence is exported ...
+                { assert ids(process.out.general).size() == 3 },
+                // ... but the last two ranks of a lineage that was cut short are a genus and a family, not a species.
+                { assert ids(process.out.addspecies) == [ '>OK Gx one' ] },
+                // DADA2's assignTaxonomy pads a short lineage by appending to its header: without the
+                // trailing ';' the padding sticks to the last rank (Family_DADA2_UNSPECIFIED).
+                { assert ids(process.out.assigntaxonomy) == [
+                    '>Bacteria;Phylum;Family;',
+                    '>Bacteria;Phylum;Family;Gx;Gx one;',
+                    '>Bacteria;Phylum;Family;Gy;',
+                ] },
+            )
+        }
+
+    }
+
+    test("weight x length ranking - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def (seqs, tax) = ['input.fna', 'checked.tax'].collect { n -> def f = file("\${workDir}/\${n}"); f.text = ''; f }
+                input[0] = [ [ id:'export_test' ], seqs, tax, [], tax, [] ]
+                input[1] = [ 1, 5, 'all' ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert snapshot(process.out).match()
+        }
+
+    }
+
+}

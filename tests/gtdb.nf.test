@@ -1,0 +1,352 @@
+nextflow_pipeline {
+
+    name "Test pipeline with real GTDB archaeal 16S data"
+    script "../main.nf"
+    tag "pipeline"
+    profile "test_gtdb"
+
+    test("-profile test_gtdb, raxtax disabled") {
+
+        when {
+            params {
+                outdir               = "$outputDir"
+                skip_raxtax          = true
+                export_n_per_species = '1,5,all'
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+            def summary   = path("$outputDir/sativaepang/user-alignment.summary.txt").text
+            def headers   = { name -> path("$outputDir/export/user-alignment.${name}.fna.gz").linesGzip.findAll { it.startsWith('>') } }
+            def taxa1     = headers('n1.assignTaxonomy')
+            def taxa5     = headers('n5.assignTaxonomy')
+            def general5  = path("$outputDir/export/user-alignment.n5.general.fna.gz").linesGzip
+            def generalAll = path("$outputDir/export/user-alignment.all.general.fna.gz").linesGzip.findAll { it.startsWith('>') }
+
+            assertAll(
+                // Every sequence goes through EPA-ng placement and scoring directly;
+                // no raxtax step runs at all.
+                { assert !new File("$outputDir/raxtaxformat").exists() },
+                // DupHaloA/DupSulfoA is a deliberate swapped-label pair (maximally
+                // divergent phyla) -- an unambiguous positive control that sativa-epang's
+                // full phylogenetic placement must catch even without raxtax's help.
+                { assert summary.contains('putative mislabels: 2') },
+                { assert mislabels.contains('DupHaloA') },
+                { assert mislabels.contains('DupSulfoA') },
+                // The final table is copied into export/, next to the other final products.
+                { assert path("$outputDir/export/user-alignment.mislabels.tsv").text == mislabels },
+                // Export: flagged sequences left out, at most N per species, original
+                // IDs restored, alignment gaps removed.
+                { assert !general5.any { it.contains('DupHaloA') || it.contains('DupSulfoA') } },
+                { assert taxa1.size() == taxa1.toSet().size() },
+                { assert taxa5.countBy { it }.values().max() == 5 },
+                { assert taxa1.toSet() == taxa5.toSet() },
+                { assert general5.findAll { it.startsWith('>') }.every { it.contains('~') } },
+                { assert !general5.findAll { !it.startsWith('>') }.any { it.contains('-') } },
+                { assert headers('n1.addSpecies').size() == taxa1.size() },
+                // All: a superset of the top 5 per species, still without the flagged pair.
+                { assert generalAll.size() >= general5.findAll { it.startsWith('>') }.size() },
+                { assert generalAll.toSet().containsAll(general5.findAll { it.startsWith('>') }) },
+                { assert !generalAll.any { it.contains('DupHaloA') || it.contains('DupSulfoA') } },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions_raxtax_disabled") },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, raxtax default (genus, confidence 0.9)") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                { assert new File("$outputDir/raxtaxformat").exists() },
+                // The swapped-label pair disagrees with raxtax's self-classification at
+                // every rank, so it's caught by raxtax directly -- never reaching EPA-ng.
+                { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
+                { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
+                // Haloferax prahovense's best raxtax hit is its sister species H.
+                // volcanii: genus agrees, so it is not flagged at the default rank.
+                { assert !(mislabels =~ /Haloferax prahovense[^\n]*\traxtax/) },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions_default_rank") },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, raxtax species rank") {
+
+        when {
+            params {
+                outdir                = "$outputDir"
+                raxtax_filter_rank    = 1
+                raxtax_min_confidence = 0
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
+                { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
+                // Species disagrees with its sister H. volcanii, so it is flagged at species rank.
+                { assert mislabels =~ /Haloferax prahovense[^\n]*\traxtax/ },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions_species_rank") },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, reference tree of the one-per-species sequences") {
+
+        when {
+            params {
+                outdir        = "$outputDir"
+                skip_raxtax   = true
+                run_reference = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tips   = { file -> (path(file).text =~ /[(,]([^(),:;]+):/).collect { it[1] } }
+            def names  = { file -> path(file).readLines().findAll { it.startsWith('>') }.collect { it.substring(1).tokenize(' ')[0] } }
+            def refTips   = tips("$outputDir/export/user-alignment.raxml.bestTree")
+            def refNames  = names("$outputDir/export/user-alignment.reference.fasta")
+            def refTax    = path("$outputDir/export/user-alignment.reference.tax").readLines()
+            def n1Names   = path("$outputDir/export/user-alignment.n1.names.txt").readLines()
+            def n1Ids     = path("$outputDir/export/user-alignment.n1.general.fna.gz").linesGzip.findAll { it.startsWith('>') }
+                .collect { it.substring(1).tokenize(' ')[0].replaceAll('[^A-Za-z0-9_.|/-]', '_') }
+            def trainTips = tips("$outputDir/raxmlng/user-alignment.raxml.bestTree")
+
+            assertAll(
+                // --run_reference alone also gets the mislabels copy in export/.
+                { assert path("$outputDir/export/user-alignment.mislabels.tsv").text == path("$outputDir/mislabels/user-alignment.mislabels.tsv").text },
+                // The reference holds exactly the sequences of the one-per-species export,
+                // which --run_reference writes without --export_n_per_species.
+                { assert refNames.toSet() == n1Names.toSet() },
+                { assert refNames.size() == n1Names.size() },
+                { assert refNames.toSet() == n1Ids.toSet() },
+                { assert refNames.size() == refNames.toSet().size() },
+                // One sequence per taxon.
+                { assert refTax.collect { it.split('\t', 2)[1] }.toSet().size() == refTax.size() },
+                { assert refTax.collect { it.split('\t')[0] }.toSet() == refNames.toSet() },
+                { assert refTips.toSet() == refNames.toSet() },
+                // The flagged pair is out; it is still in the tree SATIVA scored against.
+                { assert !refNames.any { it in ['DupHaloA', 'DupSulfoA'] } },
+                { assert trainTips.containsAll(['DupHaloA', 'DupSulfoA']) },
+                { assert refTips.size() < trainTips.size() },
+                // The model found for the reference tree is published with it.
+                { assert path("$outputDir/export/user-alignment.raxml.bestModel").text.trim() },
+                { assert new File("$outputDir/export/user-alignment.guide.nwk").exists() },
+                // Everything final is in export/; there is no separate reference/.
+                { assert !new File("$outputDir/reference").exists() },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, reference tree searched in parts") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_raxtax             = true
+                skip_sativa             = true
+                run_reference           = true
+                raxmlng_model           = "GTR+G4"
+                run_divided_tree_search = true
+                tree_part_max_tips      = 6
+                tree_part_min_tips      = 2
+                tree_part_reps          = 2
+                tree_part_outgroups     = 1
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tips  = (path("$outputDir/export/user-alignment.raxml.bestTree").text =~ /[(,]([^(),:;]+):/).collect { it[1] }
+            def names = path("$outputDir/export/user-alignment.reference.fasta").readLines().findAll { it.startsWith('>') }.collect { it.substring(1).tokenize(' ')[0] }
+
+            assertAll(
+                { assert tips.toSet() == names.toSet() },
+                { assert tips.size() == names.size() },
+                { assert path("$outputDir/export/user-alignment.raxml.bestModel").text.startsWith("GTR") },
+                // Ten tips cut at six: a binary part that is not searched, and the top part that is.
+                { assert workflow.trace.succeeded().findAll { it.name.contains('TREEGRAFT') }.size() == 1 },
+                { assert workflow.trace.succeeded().findAll { it.name.contains('RAXMLNG_SEARCH') }.size() == 1 },
+                // Only the evaluated tree is published: not the parts, and not into the default directory.
+                { assert !new File("$outputDir/raxmlng").exists() },
+                { assert !new File("$outputDir/treedivide").exists() },
+                { assert !new File("$outputDir/treegraft").exists() },
+                { assert new File("$outputDir/export").list().findAll { it.contains('job_') }.isEmpty() },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, reference tree with sativa skipped") {
+
+        when {
+            params {
+                outdir        = "$outputDir"
+                skip_raxtax   = true
+                skip_sativa   = true
+                run_reference = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def tips  = (path("$outputDir/export/user-alignment.raxml.bestTree").text =~ /[(,]([^(),:;]+):/).collect { it[1] }
+            def names = path("$outputDir/export/user-alignment.reference.fasta").readLines().findAll { it.startsWith('>') }.collect { it.substring(1).tokenize(' ')[0] }
+
+            assertAll(
+                { assert names.toSet() == path("$outputDir/export/user-alignment.n1.names.txt").readLines().toSet() },
+                { assert tips.toSet() == names.toSet() },
+                { assert path("$outputDir/export/user-alignment.raxml.bestModel").text.trim() },
+                // The reference search has its own directory; skipping SATIVA leaves the
+                // default one empty.
+                { assert !new File("$outputDir/raxmlng").exists() },
+                { assert !new File("$outputDir/taxonomytree").exists() },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, reference tree with its own model") {
+
+        when {
+            params {
+                outdir                  = "$outputDir"
+                skip_raxtax             = true
+                run_reference           = true
+                raxmlng_model           = "GTR+G4"
+                raxmlng_reference_model = "GTR+I"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def placementModel = path("$outputDir/raxmlng/user-alignment.raxml.bestModel").text
+            def referenceModel = path("$outputDir/export/user-alignment.raxml.bestModel").text
+
+            assertAll(
+                // Each tree is built under its own model.
+                { assert placementModel.contains('G4') },
+                { assert !referenceModel.contains('G4') },
+                { assert referenceModel.contains('+I') },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, reference tree falls back to the placement tree model") {
+
+        when {
+            params {
+                outdir        = "$outputDir"
+                skip_raxtax   = true
+                run_reference = true
+                raxmlng_model = "GTR+G4"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def referenceModel = path("$outputDir/export/user-alignment.raxml.bestModel").text
+
+            assertAll(
+                { assert referenceModel.contains('G4') },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, sativa skipped") {
+
+        when {
+            params {
+                outdir      = "$outputDir"
+                skip_sativa = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                // raxtax prefilter still runs as configured (default: on)...
+                { assert new File("$outputDir/raxtaxformat").exists() },
+                { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
+                { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
+                // Only the swapped-label pair disagrees at genus with high confidence.
+                { assert mislabels.readLines().size() - 1 == 2 },
+                // No export was asked for.
+                { assert !new File("$outputDir/export").exists() },
+                // ...but the phylogenetic placement subworkflow never runs at all: no
+                // reference tree, no leave-one-out placement, no scoring. This is the
+                // whole point of --skip_sativa -- a pure taxonomy-resolution/alignment/
+                // prefilter QC run, without the much more expensive EPA-ng-based step.
+                { assert !new File("$outputDir/taxonomytree").exists() },
+                { assert !new File("$outputDir/raxmlng").exists() },
+                // reference/looscore/misreport share the default sativaepang/ group;
+                // lootasks/looplace each get their own explicit subdirectory (see
+                // conf/modules.config -- both publish a *.l1o_tasks with the same name).
+                { assert !new File("$outputDir/sativaepang").exists() },
+                { assert !new File("$outputDir/sativaepang/lootasks").exists() },
+                { assert !new File("$outputDir/sativaepang/looplace").exists() },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions_sativa_skipped") },
+            )
+        }
+
+    }
+
+    test("-profile test_gtdb, sativa and clustering both skipped") {
+
+        when {
+            params {
+                outdir          = "$outputDir"
+                skip_sativa     = true
+                skip_clustering = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+
+            assertAll(
+                { assert mislabels =~ /DupHaloA[^\n]*\traxtax/ },
+                { assert mislabels =~ /DupSulfoA[^\n]*\traxtax/ },
+                // Without clustering, Pyrococcus furiosus has three sequences, so it is
+                // judged, and raxtax places all three in Methanocaldococcus.
+                { assert mislabels.readLines().size() - 1 == 5 },
+            )
+        }
+
+    }
+
+}

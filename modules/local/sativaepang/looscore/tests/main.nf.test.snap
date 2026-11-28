@@ -1,0 +1,80 @@
+{
+    "sativa-epang tiny example": {
+        "content": [
+            {
+                "mis": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mis:md5,c47a52a5c249b3fc42e595ab907b224c"
+                    ]
+                ],
+                "versions_sativaepang": [
+                    [
+                        "SATIVAEPANG_LOOSCORE",
+                        "sativaepang",
+                        "0.10.2"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-23T20:01:55.825082765",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
+        }
+    },
+    "gtdb archaea 16S": {
+        "content": [
+            {
+                "mis": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mis:md5,a85621a1bf411bf16d86dea918807540"
+                    ]
+                ],
+                "versions_sativaepang": [
+                    [
+                        "SATIVAEPANG_LOOSCORE",
+                        "sativaepang",
+                        "0.10.2"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-10-23T20:02:21.55177752",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.4"
+        }
+    },
+    "sativa-epang tiny example - stub": {
+        "content": [
+            {
+                "mis": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mis:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions_sativaepang": [
+                    [
+                        "SATIVAEPANG_LOOSCORE",
+                        "sativaepang",
+                        "0.10.2"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-09-24T14:13:30.230017",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

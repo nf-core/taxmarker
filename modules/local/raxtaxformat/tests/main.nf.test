@@ -1,0 +1,77 @@
+nextflow_process {
+
+    name "Test Process RAXTAXFORMAT"
+    script "../main.nf"
+    process "RAXTAXFORMAT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/raxtaxformat"
+
+    test("taxmarker - aligned gappy fasta") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'sativa_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.alnfna', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.tax', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def fasta = path(process.out.fasta[0][1]).text
+
+            assertAll(
+                // Header rewritten to raxtax's `>id;tax=<lineage>;` form, lineage taken
+                // from the taxonomy TSV and comma-separated (not semicolon).
+                { assert fasta.contains('>UnpCCeti;tax=Bacteria,Fusobacteria,Fusobacteriia,Fusobacteriales,Fusobacteriaceae,Cetobacterium,Cetobacterium ceti;') },
+                // Alignment gap/missing characters ('?', '-', '.') are stripped so the
+                // sequence is usable by raxtax's k-mer classifier; real bases (including
+                // ambiguity codes like N) are kept.
+                { assert !fasta.contains('?') },
+                { assert !fasta.contains('-') },
+                // sativa_test.alnfna is RNA (U for uracil); raxtax's parser only accepts
+                // DNA and panics on 'U', so it must be normalised to T here. Scoped to
+                // sequence lines only -- several sequence IDs (e.g. UnpCCeti) start with U.
+                { assert fasta.readLines().every { it.startsWith('>') || !it.contains('U') } },
+                { assert fasta.contains('GAGAGTTT') },
+                { assert snapshot(fasta).match("raxtax_fasta") },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - aligned gappy fasta - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'sativa_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.alnfna', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.tax', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

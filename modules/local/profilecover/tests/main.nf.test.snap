@@ -1,0 +1,67 @@
+{
+    "taxmarker - default threshold - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.covfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.covfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.cov_excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,38f97ed2b1927ceb5efe8dbfbf96d4d7"
+                ],
+                "alignment": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.covfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "excluded": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.cov_excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "profilecover_test"
+                        },
+                        "profilecover_test.covfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,38f97ed2b1927ceb5efe8dbfbf96d4d7"
+                ]
+            }
+        ],
+        "timestamp": "2026-08-02T11:48:07.866033424",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

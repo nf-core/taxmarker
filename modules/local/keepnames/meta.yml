@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "keepnames"
+description: |
+  Keep only the sequences named in a list, in a taxonomy file and the matching
+  alignment; the rest are dropped and the kept records are copied as they are.
+  Fails if a listed name is not in the alignment.
+keywords:
+  - alignment
+  - filtering
+  - taxmarker
+tools:
+  - "python":
+      description: "Python programming language"
+      homepage: "https://www.python.org"
+      documentation: "https://docs.python.org/3/"
+      tool_dev_url: "https://github.com/python/cpython"
+      licence: ["PSF-2.0"]
+      identifier: ""
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - alignment:
+        type: file
+        description: Aligned, labeled sequences in FASTA format (same sequences named in taxonomy).
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+    - names:
+        type: file
+        description: Names of the sequences to keep, one per line.
+        pattern: "*.txt"
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - "*.reference.tax":
+          type: file
+          description: Declared taxonomy of the kept sequences.
+          pattern: "*.reference.tax"
+  alignment:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - "*.reference.fasta":
+          type: file
+          description: Alignment of the kept sequences.
+          pattern: "*.reference.fasta"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+topics:
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -1,0 +1,85 @@
+nextflow_workflow {
+
+    name "Test Subworkflow WEIGHTED_CLUSTERING"
+    script "../main.nf"
+    workflow "WEIGHTED_CLUSTERING"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/weighted_clustering"
+    tag "taxmarker"
+
+    test("no weights, no min_weight -- exact duplicates dereplicated at identity 1.0") {
+
+        when {
+            workflow {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqA1\\td__X;p__A\\n' + 'SeqA2\\td__X;p__A\\n' + 'SeqB\\td__X;p__B\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                // vsearch's default --minseqlength is 32 -- shorter records are
+                // silently dropped, not an error, not reported.
+                seq.text = '>SeqA1\\n' + ('ACGTACGATCGATCGATCGATCGA' * 3) + '\\n' +
+                    '>SeqA2\\n' + ('ACGTACGATCGATCGATCGATCGA' * 3) + '\\n' +
+                    '>SeqB\\n' + ('TTTTGGGGCCCCAAAA' * 3) + '\\n'
+                input[0] = Channel.of(file(tax.toString()))
+                input[1] = Channel.of(file(seq.toString()))
+                input[2] = Channel.value([ [] ])
+                input[3] = null
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def taxonomy  = path(workflow.out.taxonomy[0]).text
+            def sequences = path(workflow.out.sequences[0]).text
+
+            assertAll(
+                // SeqA1/SeqA2 are byte-identical -- exactly one survives.
+                { assert (sequences.contains('>SeqA1') ^ sequences.contains('>SeqA2')) },
+                { assert sequences.contains('>SeqB') },
+                { assert taxonomy.contains('d__X;p__B') },
+            )
+        }
+
+    }
+
+    test("weight table + min_weight -- low-weight sequence excluded before clustering") {
+
+        when {
+            workflow {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqKeep\\td__X;p__A\\n' + 'SeqDrop\\td__X;p__B\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqKeep\\n' + ('ACGTACGATCGATCGATCGATCGA' * 3) + '\\n' +
+                    '>SeqDrop\\nTTTTGGGGCCCCAAAATTTTGGGG\\n'
+                def weights = File.createTempFile('test', '.weights.tsv')
+                weights.text = 'SeqKeep\\t50\\n' + 'SeqDrop\\t-100\\n'
+                input[0] = Channel.of(file(tax.toString()))
+                input[1] = Channel.of(file(seq.toString()))
+                input[2] = Channel.value([ file(weights.toString()) ])
+                input[3] = 0.0
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def taxonomy  = path(workflow.out.taxonomy[0]).text
+            def sequences = path(workflow.out.sequences[0]).text
+
+            assertAll(
+                { assert sequences.contains('>SeqKeep') },
+                { assert !sequences.contains('>SeqDrop') },
+                { assert taxonomy.contains('SeqKeep') },
+                { assert !taxonomy.contains('SeqDrop') },
+            )
+        }
+
+    }
+
+}

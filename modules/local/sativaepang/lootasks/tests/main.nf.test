@@ -1,0 +1,93 @@
+nextflow_process {
+
+    name "Test Process SATIVAEPANG_LOOTASKS"
+    script "../main.nf"
+    process "SATIVAEPANG_LOOTASKS"
+
+    tag "modules"
+    tag "modules_local"
+    tag "sativaepang"
+    tag "sativaepang/lootasks"
+
+    test("sativa-epang tiny example") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            def manifest = new groovy.json.JsonSlurper().parse(new File(taskdir.toString(), "manifest.json"))
+            assert process.success
+            assertAll(
+                // The reference model reaches the folds, rather than EPA-ng's GTR+G default.
+                { assert manifest.model == 'model' },
+                { assert new File(taskdir.toString(), 'model').text.startsWith('GTR{') },
+                { assert new File(taskdir.toString(), 'fold_000/model').text == new File(taskdir.toString(), 'model').text },
+                { assert manifest.n_folds > 0 },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+    }
+
+    test("gtdb archaea 16S") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.model', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            def manifest = new groovy.json.JsonSlurper().parse(new File(taskdir.toString(), "manifest.json"))
+            assert process.success
+            assertAll(
+                // The reference model reaches the folds, rather than EPA-ng's GTR+G default.
+                { assert manifest.model == 'model' },
+                { assert new File(taskdir.toString(), 'model').text.startsWith('GTR{') },
+                { assert new File(taskdir.toString(), 'fold_000/model').text == new File(taskdir.toString(), 'model').text },
+                { assert manifest.n_folds > 0 },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+    }
+
+    test("sativa-epang tiny example - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'test' ],
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                    file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+    }
+}

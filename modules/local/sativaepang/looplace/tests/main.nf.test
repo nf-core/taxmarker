@@ -1,0 +1,132 @@
+nextflow_process {
+
+    name "Test Process SATIVAEPANG_LOOPLACE"
+    script "../main.nf"
+    process "SATIVAEPANG_LOOPLACE"
+
+    tag "modules"
+    tag "modules_local"
+    tag "sativaepang"
+    tag "sativaepang/lootasks"
+    tag "sativaepang/looplace"
+
+    test("sativa-epang tiny example") {
+
+        setup {
+            run("SATIVAEPANG_LOOTASKS") {
+                script "../../lootasks/main.nf"
+                process {
+                    """
+                    input[0] = [
+                        [ id:'test' ],
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true)
+                    ]
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = SATIVAEPANG_LOOTASKS.out.taskdir
+                """
+            }
+        }
+
+        then {
+            // epa_result.jplace/epa_info.log/epang.log aren't byte-reproducible across
+            // engines (conda vs. container placement likelihoods, wall-clock timing) --
+            // masked below, same precedent as sigprofiler/snapaligner.
+            def taskdir = file(process.out.taskdir[0][1])
+            def foldDirs = taskdir.listFiles().findAll { it.isDirectory() && it.name.startsWith("fold_") }
+            assert process.success
+            assertAll(
+                { assert foldDirs.size() > 0 },
+                // Downstream tasks read only manifest.json and each fold's placement. A link
+                // into lootasks' work directory dangles when a container mounts only part of
+                // work/, so the output holds no links and none of lootasks' own inputs.
+                { assert java.nio.file.Files.walk(new File(taskdir.toString()).toPath()).noneMatch { java.nio.file.Files.isSymbolicLink(it) } },
+                { assert java.nio.file.Files.isRegularFile(new File(taskdir.toString(), 'manifest.json').toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) },
+                { assert foldDirs.every { d -> ['ref.nwk', 'ref.fasta', 'query.fasta'].every { !new File(d.toString(), it).exists() } } },
+                { assert foldDirs.every { new File(it.toString(), "epa_result.jplace").exists() } },
+                { assert snapshot(sanitizeOutput(process.out, unstablePatterns: ["**/epa_result.jplace", "**/epa_info.log", "**/epang.log"])).match() }
+            )
+        }
+    }
+
+    test("gtdb archaea 16S") {
+
+        setup {
+            run("SATIVAEPANG_LOOTASKS") {
+                script "../../lootasks/main.nf"
+                process {
+                    """
+                    input[0] = [
+                        [ id:'test' ],
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/gtdb_archaea_16s.model', checkIfExists: true)
+                    ]
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = SATIVAEPANG_LOOTASKS.out.taskdir
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            def foldDirs = taskdir.listFiles().findAll { it.isDirectory() && it.name.startsWith("fold_") }
+            assert process.success
+            assertAll(
+                { assert foldDirs.size() > 0 },
+                { assert foldDirs.every { new File(it.toString(), "epa_result.jplace").exists() } },
+                { assert snapshot(sanitizeOutput(process.out, unstablePatterns: ["**/epa_result.jplace", "**/epa_info.log", "**/epang.log"])).match() }
+            )
+        }
+    }
+
+    test("sativa-epang tiny example - stub") {
+
+        options "-stub"
+
+        setup {
+            run("SATIVAEPANG_LOOTASKS") {
+                script "../../lootasks/main.nf"
+                process {
+                    """
+                    input[0] = [
+                        [ id:'test' ],
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.refjson', checkIfExists: true),
+                        file(params.modules_testdata_base_path + 'delete_me/sativaepang/sativaepang_tiny.model', checkIfExists: true)
+                    ]
+                    """
+                }
+            }
+        }
+
+        when {
+            process {
+                """
+                input[0] = SATIVAEPANG_LOOTASKS.out.taskdir
+                """
+            }
+        }
+
+        then {
+            def taskdir = file(process.out.taskdir[0][1])
+            assert process.success
+            assertAll(
+                { assert java.nio.file.Files.walk(new File(taskdir.toString()).toPath()).noneMatch { java.nio.file.Files.isSymbolicLink(it) } },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+    }
+}

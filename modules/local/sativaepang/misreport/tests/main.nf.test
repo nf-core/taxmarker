@@ -1,0 +1,253 @@
+nextflow_process {
+
+    name "Test Process SATIVAEPANG_MISREPORT"
+    script "../main.nf"
+    process "SATIVAEPANG_MISREPORT"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "sativaepang"
+    tag "sativaepang/misreport"
+
+    // A real .mis file and manifest.json are tiny and entirely generic (no
+    // taxmarker-specific content), so both are constructed inline here rather than
+    // adding fixtures to test-datasets -- .mis format confirmed against a real
+    // sativa-epang run (SeqID, MislabeledLevel, OriginalLabel, ProposedLabel,
+    // Confidence, OriginalTaxonomyPath, ProposedTaxonomyPath, PerRankConfidence).
+    test("one flagged sequence") {
+
+        when {
+            process {
+                """
+                def misFile = File.createTempFile('test', '.mis')
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\n' +
+                    'GB_GCA_014728835.1~WJKY01000087.1\\tPhylum\\tp__Nanoarchaeota\\tp__Halobacteriota\\t1.000\\td__Archaea;p__Nanoarchaeota;c__Nanoarchaeia\\td__Archaea;p__Halobacteriota;c__Methanoliparia\\t1.000;1.000\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 3}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+            def summary   = path(process.out.summary[0][1]).text
+
+            assertAll(
+                { assert mislabels.contains('GB_GCA_014728835.1~WJKY01000087.1') },
+                { assert mislabels.contains('d__Archaea;p__Nanoarchaeota;c__Nanoarchaeia') },
+                { assert mislabels.contains('d__Archaea;p__Halobacteriota;c__Methanoliparia') },
+                // First differing token between original/proposed paths is index 2
+                // (kingdom d__Archaea matches, phylum differs), 1-based.
+                { assert mislabels.contains('\t2\tsativa') },
+                // This .mis predates OriginalLabelExclusion, so the column is NA.
+                { assert mislabels.contains('\t1.0\tNA\t2\tsativa') },
+                { assert summary.contains('sequences scored: 3') },
+                { assert summary.contains('putative mislabels: 1') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("no flagged sequences") {
+
+        when {
+            process {
+                """
+                def misFile = File.createTempFile('test', '.mis')
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 5}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+            def summary   = path(process.out.summary[0][1]).text
+
+            assertAll(
+                { assert mislabels.readLines().size() == 1 },
+                { assert summary.contains('sequences scored: 5') },
+                { assert summary.contains('putative mislabels: 0') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("below-threshold confidence excluded from mislabels but still scored") {
+
+        when {
+            process {
+                """
+                def misFile = File.createTempFile('test', '.mis')
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\n' +
+                    'above\\tPhylum\\tp__A\\tp__B\\t0.900\\td__X;p__A\\td__X;p__B\\t1.000;0.900\\n' +
+                    'below\\tPhylum\\tp__A\\tp__C\\t0.100\\td__X;p__A\\td__X;p__C\\t1.000;0.100\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 2}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+            def summary   = path(process.out.summary[0][1]).text
+
+            assertAll(
+                // default --min-lwr is 0.5: "above" (0.9) is reported, "below" (0.1) is not
+                { assert mislabels.contains('above') },
+                { assert !mislabels.contains('below') },
+                { assert summary.contains('sequences scored: 2') },
+                { assert summary.contains('putative mislabels: 1') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("taxonomy paths differ only in depth -- mismatch_rank is never null") {
+
+        when {
+            process {
+                """
+                def misFile = File.createTempFile('test', '.mis')
+                // Original path is a strict prefix of the proposed one (agrees over
+                // its shared length, differs only in depth) -- sativa-epang still
+                // flags it (it's in .mis at all), so mismatch_rank must resolve to
+                // the first rank beyond the shared prefix, not stay unset.
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\n' +
+                    'shallow\\tSpecies\\td__X;p__A\\td__X;p__A;c__B\\t0.900\\td__X;p__A\\td__X;p__A;c__B\\t1.000;1.000\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 1}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+
+            assertAll(
+                { assert !mislabels.contains('\tNone\t') },
+                // Shared prefix is 2 ranks (d__X;p__A), so the mismatch is at rank 3.
+                { assert mislabels.contains('\t3\tsativa') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("OriginalLabelExclusion is kept, other extra .mis columns are ignored") {
+
+        when {
+            process {
+                """
+                // sativa-epang 0.10.2 appends OriginalLabelExclusion, and -ranktest adds
+                // HigherRankMisplacedConfidence after it. 0.123 is the exclusion and must
+                // land in original_label_exclusion; 0.456 must not surface at all.
+                def misFile = File.createTempFile('test', '.mis')
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\tOriginalLabelExclusion\\tHigherRankMisplacedConfidence\\n' +
+                    'SeqA\\tPhylum\\tp__Nanoarchaeota\\tp__Halobacteriota\\t1.000\\td__Archaea;p__Nanoarchaeota\\td__Archaea;p__Halobacteriota\\t1.000;1.000\\t0.123\\t0.456\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 3}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+            def summary   = path(process.out.summary[0][1]).text
+
+            assertAll(
+                { assert mislabels.readLines()[0].split('\t')[4] == 'original_label_exclusion' },
+                { assert mislabels.contains('SeqA') },
+                { assert mislabels.contains('\t1.0\t0.123\t2\tsativa') },
+                { assert !mislabels.contains('0.456') },
+                { assert summary.contains('putative mislabels: 1') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("stem placement: lwr 0.510 with an exclusion near 1") {
+
+        when {
+            process {
+                """
+                // A placement on the branch between a genus and its parent splits its weight
+                // 0.49/0.51 (sativa's hardcoded parent_lhw_coeff), so lwr is 0.510 while
+                // almost all of the weight is outside the declared genus.
+                def misFile = File.createTempFile('test', '.mis')
+                misFile.text = ';SeqID\\tMislabeledLevel\\tOriginalLabel\\tProposedLabel\\tConfidence\\tOriginalTaxonomyPath\\tProposedTaxonomyPath\\tPerRankConfidence\\tOriginalLabelExclusion\\n' +
+                    'SeqB\\tGenus\\tg__Methanobrevibacter\\tg__Methanosphaera\\t0.510\\td__Archaea;p__Methanobacteriota;g__Methanobrevibacter\\td__Archaea;p__Methanobacteriota;g__Methanosphaera\\t1.000;1.000;0.510\\t0.998\\n'
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 3}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def mislabels = path(process.out.mislabels[0][1]).text
+
+            assertAll(
+                { assert mislabels.contains('SeqB') },
+                { assert mislabels.contains('\t0.51\t0.998\t3\tsativa') },
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def misFile = File.createTempFile('test', '.mis')
+                def taskdir = new File(File.createTempDir(), 'test.l1o_tasks')
+                taskdir.mkdirs()
+                new File(taskdir, 'manifest.json').text = '{"n_folds": 1, "n_leaves": 3}'
+                input[0] = [ [ id:'test' ], file(misFile.toString()), file(taskdir.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(sanitizeOutput(process.out)).match() }
+            )
+        }
+
+    }
+
+}

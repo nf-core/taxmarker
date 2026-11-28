@@ -1,0 +1,86 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "gtdbweighttranslate"
+description: |
+  Translate GTDB genome metadata into the generic sequence-weight table WEIGHTED_CLUSTERING
+  consumes (see nf-core/taxmarker#15). Only sequences whose id matches GTDB's own ssu_all
+  naming convention (`<accession>~<contig>`, e.g. `RS_GCF_002194975.1~NZ_NHWV01000143.1`)
+  and have a matching row in the given metadata get an entry; everything else is left out,
+  defaulting to weight 1 downstream. Runs on the pristine --sequences file, before
+  RESOLVETAXONOMY strips header text, since it needs both the accession (before CHECKNAMECONSISTENCY
+  sanitises `~` away) and each record's own `[contig_len=...]` annotation.
+
+  weight = category_term + quality_score + type_material_term + contig_len_term + mismatch_penalty
+    quality_score: checkm2_completeness - 5*checkm2_contamination (checkm_* fallback)
+    category_term (ncbi_genome_category): isolate(none)=10, SAG=5, MAG=0, other=0
+    type_material_term (ncbi_type_material_designation): na=0, type material=5,
+      synonym type material=3, pathotype=3, neotype/reftype/clade exemplar=2
+    contig_len_term (this record's own [contig_len=...]): <2000bp=0, 2000-20000bp=1,
+      20000-200000bp=2, >=200000bp=3, missing=0
+    mismatch_penalty: shallowest rank (domain->genus) where gtdb_taxonomy disagrees with
+      synonym-normalised ssu_silva_taxonomy: domain=-200, phylum=-150, class=-40, order=-25,
+      family=-10, genus=-5, none=0. Synonym sets are built per rank from isolate-only
+      GTDB/SILVA co-occurrence in the same metadata (>=5% of a GTDB name's isolate rows),
+      so real nomenclature drift (e.g. Desulfobacterota/Thermodesulfobacteriota) isn't
+      double-counted as contamination signal.
+keywords:
+  - gtdb
+  - weighting
+  - clustering
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - sequences:
+        type: file
+        description: The pristine --sequences file, before RESOLVETAXONOMY strips header text.
+        pattern: "*.{fa,fasta,fna}"
+  - - bac120_metadata:
+        type: file
+        description: Optional GTDB bacterial (bac120) metadata table, gzip-ok. Empty list if not given.
+        pattern: "*.{tsv,tsv.gz}"
+  - - ar53_metadata:
+        type: file
+        description: Optional GTDB archaeal (ar53) metadata table, gzip-ok. Empty list if not given.
+        pattern: "*.{tsv,tsv.gz}"
+output:
+  weights:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - weights_tsv:
+          type: file
+          description: Two-column weight table (seq_name<TAB>weight), ready for --sequence_weights.
+          pattern: "*.weights.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

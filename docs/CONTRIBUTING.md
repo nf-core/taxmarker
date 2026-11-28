@@ -3,18 +3,18 @@ title: Contributing
 markdownPlugin: checklist
 ---
 
-# `nf-core/sativa`: Contributing guidelines
+# `nf-core/taxmarker`: Contributing guidelines
 
 Hi there!
-Thanks for taking an interest in improving nf-core/sativa.
+Thanks for taking an interest in improving nf-core/taxmarker.
 
-This page describes the recommended nf-core way to contribute to both nf-core/sativa and nf-core pipelines in general, including:
+This page describes the recommended nf-core way to contribute to both nf-core/taxmarker and nf-core pipelines in general, including:
 
 - [General contribution guidelines](#general-contribution-guidelines): common procedures or guides across all nf-core pipelines.
-- [Pipeline-specific contribution guidelines](#pipeline-specific-contribution-guidelines): procedures or guides specific to the development conventions of nf-core/sativa.
+- [Pipeline-specific contribution guidelines](#pipeline-specific-contribution-guidelines): procedures or guides specific to the development conventions of nf-core/taxmarker.
 
 > [!NOTE]
-> If you need help using or modifying nf-core/sativa, ask on the nf-core Slack [#sativa](https://nfcore.slack.com/channels/sativa) channel ([join our Slack here](https://nf-co.re/join/slack)).
+> If you need help using or modifying nf-core/taxmarker, ask on the nf-core Slack [#taxmarker](https://nfcore.slack.com/channels/taxmarker) channel ([join our Slack here](https://nf-co.re/join/slack)).
 
 ## General contribution guidelines
 
@@ -23,8 +23,8 @@ This page describes the recommended nf-core way to contribute to both nf-core/sa
 To contribute code to any nf-core pipeline:
 
 - [ ] Ensure you have Nextflow, nf-core tools, and nf-test installed. See the [nf-core/tools repository](https://github.com/nf-core/tools) for instructions.
-- [ ] Check whether a GitHub [issue](https://github.com/nf-core/sativa/issues) about your idea already exists. If an issue does not exist, create one so that others are aware you are working on it.
-- [ ] [Fork](https://help.github.com/en/github/getting-started-with-github/fork-a-repo) the [nf-core/sativa repository](https://github.com/nf-core/sativa) to your GitHub account.
+- [ ] Check whether a GitHub [issue](https://github.com/nf-core/taxmarker/issues) about your idea already exists. If an issue does not exist, create one so that others are aware you are working on it.
+- [ ] [Fork](https://help.github.com/en/github/getting-started-with-github/fork-a-repo) the [nf-core/taxmarker repository](https://github.com/nf-core/taxmarker) to your GitHub account.
 - [ ] Create a branch on your forked repository and make your changes following [pipeline conventions](#pipeline-contribution-conventions) (if applicable).
 - [ ] To fix major bugs, name your branch `patch` and follow the [patch release](#patch-release) process.
 - [ ] Update relevant documentation within the `docs/` folder, use nf-core/tools to update `nextflow_schema.json`, and update `CITATIONS.md`.
@@ -40,26 +40,26 @@ The nf-core stance on the use of AI and LLMs is that humans are still ultimately
 
 If you’re using AI tools, try to stick by these guidelines:
 
-- Keep PRs as small and focussed as possible
+- Keep PRs as small and focused as possible
 - Avoid any unnecessary changes, such as moving or refactoring code (unless that is the explicit intention of the PR)
 - Review all generated code yourself before opening a PR, and ensure that you understand it
 - Engage with the community review process and expect to make revisions
 
-For more detail, see the the [blog post](https://nf-co.re/blog/2026/statement-on-ai) for a statement from the nf-core/core team.
+For more detail, see the [blog post](https://nf-co.re/blog/2026/statement-on-ai) for a statement from the nf-core/core team.
 
 ### Getting help
 
-For further information and help, see the [nf-core/sativa documentation](https://nf-co.re/sativa/usage) or ask on the nf-core [#sativa](https://nfcore.slack.com/channels/sativa) Slack channel ([join our Slack here](https://nf-co.re/join/slack)).
+For further information and help, see the [nf-core/taxmarker documentation](https://nf-co.re/taxmarker/usage) or ask on the nf-core [#taxmarker](https://nfcore.slack.com/channels/taxmarker) Slack channel ([join our Slack here](https://nf-co.re/join/slack)).
 
 ### GitHub Codespaces
 
-You can contribute to nf-core/sativa without installing a local development environment on your machine by using [GitHub Codespaces](https://github.com/codespaces).
+You can contribute to nf-core/taxmarker without installing a local development environment on your machine by using [GitHub Codespaces](https://github.com/codespaces).
 
 [GitHub Codespaces](https://github.com/codespaces) is an online developer environment that runs in your browser, complete with VS Code and a terminal.
 Most nf-core repositories include a devcontainer configuration, which creates a GitHub Codespaces environment specifically for Nextflow development.
 The environment includes pre-installed nf-core tools, Nextflow, and a few other helpful utilities via a Docker container.
 
-To get started, open the repository in [Codespaces](https://github.com/nf-core/sativa/codespaces).
+To get started, open the repository in [Codespaces](https://github.com/nf-core/taxmarker/codespaces).
 
 ### Testing
 
@@ -112,7 +112,7 @@ These tests are run with the latest available version of Nextflow and the minimu
 
 ### Pipeline contribution conventions
 
-nf-core semi-standardises how you write code and other contributions to make the nf-core/sativa code and processing logic more understandable for new contributors and to ensure quality.
+nf-core semi-standardises how you write code and other contributions to make the nf-core/taxmarker code and processing logic more understandable for new contributors and to ensure quality.
 
 #### Add a new pipeline step
 
@@ -128,7 +128,7 @@ Please also refer to the [pipeline-specific contribution guidelines](#pipeline-s
 - [ ] Perform local tests to validate that the new code works as expected.
   - [ ] If applicable, add a new test in the `tests` directory.
 - [ ] Update `usage.md`, `output.md`, and `citation.md` as appropriate.
-- [ ] [Lint](lint) the code with nf-core/tools.
+- [ ] [Lint](#lint-tests) the code with nf-core/tools.
 - [ ] Update any diagrams or pipeline images as necessary.
 - [ ] Update MultiQC config `assets/multiqc_config.yml` so relevant suffixes, file name cleanup, and module plots are in the appropriate order.
 - [ ] If applicable, create a [MultiQC](https://seqera.io/multiqc/) module.
@@ -166,7 +166,7 @@ Specify these with generic `withLabel:` selectors, so they can be shared across 
 nf-core provides a set of standard labels that you should follow where possible, as seen in the [nf-core pipeline template](https://github.com/nf-core/tools/blob/main/nf_core/pipeline-template/conf/base.config).
 These labels define resource defaults for single-core processes, modules that require a GPU, and different levels of multi-core configurations with increasing memory requirements.
 
-Values assigned within these labels can be dynamically passed to a tool using the the `${task.cpus}` and `${task.memory}` Nextflow variables in the `script:` block of a module (see an example in the [modules repository](https://github.com/nf-core/modules/blob/bd1b6a40f55933d94b8c9ca94ec8c1ea0eaf4b82/modules/nf-core/samtools/bam2fq/main.nf#L30)).
+Values assigned within these labels can be dynamically passed to a tool using the `${task.cpus}` and `${task.memory}` Nextflow variables in the `script:` block of a module (see an example in the [modules repository](https://github.com/nf-core/modules/blob/bd1b6a40f55933d94b8c9ca94ec8c1ea0eaf4b82/modules/nf-core/samtools/bam2fq/main.nf#L30)).
 
 #### Nextflow version bumping
 
@@ -179,7 +179,3 @@ nf-core pipelines bump-version --nextflow . <min_nf_version>
 #### Images and figures guidelines
 
 If you update images or graphics, follow the nf-core [style guidelines](https://nf-co.re/docs/community/brand/workflow-schematics).
-
-## Pipeline specific contribution guidelines
-
-<!-- TODO nf-core: Add any pipeline specific contribution guidelines here, such as coding styles, procedures, checklists etc. -->

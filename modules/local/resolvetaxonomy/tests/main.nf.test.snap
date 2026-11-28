@@ -1,0 +1,67 @@
+{
+    "taxmarker - embedded taxonomy - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.resolved.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.resolved.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.warnings.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    "versions.yml:md5,a722c8a2b50e1f8c0ee8707fd86aee47"
+                ],
+                "sequences": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.resolved.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.resolved.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,a722c8a2b50e1f8c0ee8707fd86aee47"
+                ],
+                "warnings": [
+                    [
+                        {
+                            "id": "resolvetaxonomy_test"
+                        },
+                        "resolvetaxonomy_test.warnings.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ]
+            }
+        ],
+        "timestamp": "2026-08-02T08:22:56.650397373",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

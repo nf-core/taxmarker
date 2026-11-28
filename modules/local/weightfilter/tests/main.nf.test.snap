@@ -1,0 +1,83 @@
+{
+    "stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.ungapped.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "3": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "4": [
+                    "versions.yml:md5,7882ee2b2eac0b2cf2f31e884d14fbd2"
+                ],
+                "excluded": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.excluded.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "sequences": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "taxonomy": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.tax:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "ungapped_sequences": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.weightfiltered.ungapped.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,7882ee2b2eac0b2cf2f31e884d14fbd2"
+                ]
+            }
+        ],
+        "timestamp": "2026-09-22T11:22:07.987942007",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}

@@ -1,0 +1,73 @@
+nextflow_process {
+
+    name "Test Process TAXONOMYTREE"
+    script "../main.nf"
+    process "TAXONOMYTREE"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/taxonomytree"
+
+    test("taxmarker - taxonomy tsv") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'sativa_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.tax', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def newick = path(process.out.guide_tree[0][1]).text
+
+            assertAll(
+                // Valid Newick ends with a semicolon
+                { assert newick.trim().endsWith(';') },
+                // Every sequence name from the input must appear as a leaf
+                { assert newick.contains('UnpCCeti') },
+                { assert newick.contains('UnpSomer') },
+                { assert newick.contains('UpbRectu') },
+                // Sequences sharing a genus should be grouped: both Cetobacterium spp.
+                // must appear inside the same parenthetical subtree
+                { assert newick =~ /\([^)]*UnpCCeti[^)]*UnpSomer[^)]*\)/ ||
+                                   newick =~ /\([^)]*UnpSomer[^)]*UnpCCeti[^)]*\)/ },
+                // Snapshot captures file MD5 for regression detection
+                { assert snapshot(process.out.guide_tree).match("guide_tree") },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - taxonomy tsv - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'sativa_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_test.tax', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

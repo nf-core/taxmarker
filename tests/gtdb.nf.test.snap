@@ -1,0 +1,259 @@
+{
+    "versions_raxtax_disabled": {
+        "content": [
+            {
+                "CHECKALIGNED": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CHECKNAMECONSISTENCY": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CLUSTERSELECT": {
+                    "python": "3.12.12"
+                },
+                "EMBOSS_SEQRET": {
+                    "emboss": "6.6.0.0"
+                },
+                "EXPORTREFERENCE": {
+                    "python": "3.12.12"
+                },
+                "GAPFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXMLNG_SEARCH": {
+                    "raxmlng": "2.0.3"
+                },
+                "RESOLVETAXONOMY": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_LOOPLACE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOSCORE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOTASKS": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_MISREPORT": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_REFERENCE": {
+                    "sativaepang": "0.10.2"
+                },
+                "TAXONOMYTREE": {
+                    "python": "3.12.12"
+                },
+                "VSEARCH_CLUSTER": {
+                    "samtools": "1.23.1",
+                    "vsearch": "2.31.0"
+                },
+                "WEIGHTFILTER": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/taxmarker": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-09-29T17:07:45.532995635",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    },
+    "versions_default_rank": {
+        "content": [
+            {
+                "CHECKALIGNED": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CHECKNAMECONSISTENCY": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CLUSTERSELECT": {
+                    "python": "3.12.12"
+                },
+                "EMBOSS_SEQRET": {
+                    "emboss": "6.6.0.0"
+                },
+                "GAPFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXMLNG_SEARCH": {
+                    "raxmlng": "2.0.3"
+                },
+                "RAXTAX": {
+                    "raxtax": "1.6.0"
+                },
+                "RAXTAXFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXTAXFORMAT": {
+                    "python": "3.12.12"
+                },
+                "RESOLVETAXONOMY": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_LOOPLACE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOSCORE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOTASKS": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_MISREPORT": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_REFERENCE": {
+                    "sativaepang": "0.10.2"
+                },
+                "TAXONOMYTREE": {
+                    "python": "3.12.12"
+                },
+                "VSEARCH_CLUSTER": {
+                    "samtools": "1.23.1",
+                    "vsearch": "2.31.0"
+                },
+                "WEIGHTFILTER": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/taxmarker": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-09-22T12:03:40.944403466",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    },
+    "versions_sativa_skipped": {
+        "content": [
+            {
+                "CHECKALIGNED": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CHECKNAMECONSISTENCY": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CLUSTERSELECT": {
+                    "python": "3.12.12"
+                },
+                "EMBOSS_SEQRET": {
+                    "emboss": "6.6.0.0"
+                },
+                "GAPFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXTAX": {
+                    "raxtax": "1.6.0"
+                },
+                "RAXTAXFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXTAXFORMAT": {
+                    "python": "3.12.12"
+                },
+                "RESOLVETAXONOMY": {
+                    "python": "3.12.12"
+                },
+                "VSEARCH_CLUSTER": {
+                    "samtools": "1.23.1",
+                    "vsearch": "2.31.0"
+                },
+                "WEIGHTFILTER": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/taxmarker": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-09-22T12:05:27.84260341",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    },
+    "versions_species_rank": {
+        "content": [
+            {
+                "CHECKALIGNED": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CHECKNAMECONSISTENCY": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CLUSTERSELECT": {
+                    "python": "3.12.12"
+                },
+                "EMBOSS_SEQRET": {
+                    "emboss": "6.6.0.0"
+                },
+                "GAPFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXMLNG_SEARCH": {
+                    "raxmlng": "2.0.3"
+                },
+                "RAXTAX": {
+                    "raxtax": "1.6.0"
+                },
+                "RAXTAXFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXTAXFORMAT": {
+                    "python": "3.12.12"
+                },
+                "RESOLVETAXONOMY": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_LOOPLACE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOSCORE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOTASKS": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_MISREPORT": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_REFERENCE": {
+                    "sativaepang": "0.10.2"
+                },
+                "TAXONOMYTREE": {
+                    "python": "3.12.12"
+                },
+                "VSEARCH_CLUSTER": {
+                    "samtools": "1.23.1",
+                    "vsearch": "2.31.0"
+                },
+                "WEIGHTFILTER": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/taxmarker": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-09-22T12:04:46.25273033",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}
