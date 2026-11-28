@@ -1,0 +1,67 @@
+{
+    "raxtax_out": {
+        "content": [
+            "SeqA1;tax=Bacteria,PhylumA,ClassA,GenusA,SpeciesA;\tBacteria,PhylumA,ClassA,GenusA,SpeciesA\t1.00,0.98,0.98,0.98,0.98\t0.00000\t0.87655\nSeqA1;tax=Bacteria,PhylumA,ClassA,GenusA,SpeciesA;\tBacteria,PhylumB,ClassB,GenusB,SpeciesB\t1.00,0.02,0.02,0.02,0.02\t0.00000\t0.87655\nSeqA2;tax=Bacteria,PhylumA,ClassA,GenusA,SpeciesA;\tBacteria,PhylumA,ClassA,GenusA,SpeciesA\t1.00,1.00,1.00,1.00,1.00\t0.00000\t0.89344\nSeqB1;tax=Bacteria,PhylumB,ClassB,GenusB,SpeciesB;\tBacteria,PhylumB,ClassB,GenusB,SpeciesB\t1.00,1.00,1.00,1.00,1.00\t0.00000\t0.89443\nSeqB2;tax=Bacteria,PhylumB,ClassB,GenusB,SpeciesB;\tBacteria,PhylumB,ClassB,GenusB,SpeciesB\t1.00,1.00,1.00,1.00,1.00\t0.00000\t0.89443\nSeqMisl;tax=Bacteria,PhylumB,ClassB,GenusB,SpeciesB;\tBacteria,PhylumA,ClassA,GenusA,SpeciesA\t1.00,1.00,1.00,1.00,1.00\t0.00000\t0.71042\n"
+        ],
+        "timestamp": "2026-08-01T09:43:00.244665192",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "taxmarker - self-classification, one mislabelled sequence - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "raxtax_test"
+                        },
+                        "raxtax.out:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    [
+                        {
+                            "id": "raxtax_test"
+                        },
+                        "raxtax.log:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "2": [
+                    
+                ],
+                "3": [
+                    "versions.yml:md5,e3073d824b5441ebcc7be293c3f4b18e"
+                ],
+                "log": [
+                    [
+                        {
+                            "id": "raxtax_test"
+                        },
+                        "raxtax.log:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "out": [
+                    [
+                        {
+                            "id": "raxtax_test"
+                        },
+                        "raxtax.out:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "tsv": [
+                    
+                ],
+                "versions": [
+                    "versions.yml:md5,e3073d824b5441ebcc7be293c3f4b18e"
+                ]
+            }
+        ],
+        "timestamp": "2026-08-01T09:41:44.856827225",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

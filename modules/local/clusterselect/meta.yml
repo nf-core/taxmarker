@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "clusterselect"
+description: |
+  Pick one representative sequence per (VSEARCH cluster, declared taxon) pair, scoring
+  each candidate on (length / max-length-in-cluster) x weight -- a normalized length
+  fraction rather than raw within-cluster rank, so a cluster's size can't swamp
+  weight's own dynamic range. A sequence with no entry in the (optional) weight table
+  defaults to weight 1.
+keywords:
+  - clustering
+  - selection
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - sequences:
+        type: file
+        description: Unaligned, labeled sequences in FASTA format (same sequences named in taxonomy).
+        pattern: "*.{fa,fasta,fna}"
+    - uc:
+        type: file
+        description: VSEARCH --uc cluster-membership output for the same sequences.
+        pattern: "*.uc.tsv.gz"
+    - weights:
+        type: file
+        description: Optional two-column weight table (seq_name<TAB>weight), plain or gzipped. Absent -> every sequence defaults to weight 1.
+        pattern: "*.{tsv,txt,tsv.gz,txt.gz}"
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - representative_taxonomy:
+          type: file
+          description: Declared taxonomy, restricted to the chosen representatives.
+          pattern: "*.representatives.tax"
+  sequences:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - representative_sequences:
+          type: file
+          description: One sequence per (cluster, taxon) pair -- the argmax of (length fraction x weight).
+          pattern: "*.representatives.fasta"
+  selection:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - selection_tsv:
+          type: file
+          description: Every cluster member considered, its score, and whether it was chosen as representative.
+          pattern: "*.selection.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

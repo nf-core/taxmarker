@@ -1,0 +1,120 @@
+nextflow_process {
+
+    name "Test Process KEEPNAMES"
+    script "../main.nf"
+    process "KEEPNAMES"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/keepnames"
+
+    test("only the listed sequences are kept, in alignment order") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/keepnames_fixture")
+                dir.mkdirs()
+                def all = ['Seq1', 'Seq10', 'xSeq1', 'Seq2', 'Seq3']
+                def seqs = file("\${dir}/input.fasta")
+                seqs.text = all.collect { n -> ">\${n} desc\\nAC-GT\\nTTAA--\\n" }.join('')
+                def tax = file("\${dir}/input.tax")
+                tax.text = all.collect { n -> "\${n}\\tBacteria;\${n}\\n" }.join('')
+                // Listed out of alignment order; Seq1 is a substring of Seq10 and xSeq1.
+                def names = file("\${dir}/names.txt")
+                names.text = 'Seq3\\nSeq1\\n'
+                input[0] = [ [ id:'keep_test' ], tax, seqs, names ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).readLines()
+            def alignment = path(process.out.alignment[0][1]).readLines()
+
+            assertAll(
+                { assert taxonomy == [ 'Seq1\tBacteria;Seq1', 'Seq3\tBacteria;Seq3' ] },
+                // Sequence lines are copied as they are, gaps included.
+                { assert alignment == [ '>Seq1 desc', 'AC-GT', 'TTAA--', '>Seq3 desc', 'AC-GT', 'TTAA--' ] },
+            )
+        }
+
+    }
+
+    test("an empty list keeps nothing") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/keepnames_empty")
+                dir.mkdirs()
+                def seqs = file("\${dir}/input.fasta")
+                seqs.text = '>A\\nACGT\\n'
+                def tax = file("\${dir}/input.tax")
+                tax.text = 'A\\tBacteria;X\\n'
+                def names = file("\${dir}/names.txt")
+                names.text = ''
+                input[0] = [ [ id:'keep_test' ], tax, seqs, names ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert path(process.out.taxonomy[0][1]).readLines() == [] },
+                { assert path(process.out.alignment[0][1]).readLines() == [] },
+            )
+        }
+
+    }
+
+    test("a listed name missing from the alignment fails") {
+
+        when {
+            process {
+                """
+                def dir = file("\${workDir}/keepnames_missing")
+                dir.mkdirs()
+                def seqs = file("\${dir}/input.fasta")
+                seqs.text = '>A\\nACGT\\n'
+                def tax = file("\${dir}/input.tax")
+                tax.text = 'A\\tBacteria;X\\n'
+                def names = file("\${dir}/names.txt")
+                names.text = 'A\\nB\\n'
+                input[0] = [ [ id:'keep_test' ], tax, seqs, names ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.errorReport.contains('Not in the alignment: B')
+        }
+
+    }
+
+    test("keep names - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def (seqs, tax, names) = ['input.fasta', 'input.tax', 'names.txt'].collect { n -> def f = file("\${workDir}/\${n}"); f.text = ''; f }
+                input[0] = [ [ id:'keep_test' ], tax, seqs, names ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assert snapshot(process.out).match()
+        }
+
+    }
+
+}

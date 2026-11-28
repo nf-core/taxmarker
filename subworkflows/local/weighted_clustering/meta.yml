@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "weighted_clustering"
+description: |
+  Reduce a large input sequence set before alignment/placement: an optional absolute
+  min_weight cutoff, then VSEARCH clustering by similarity, then one representative
+  sequence per (cluster, taxon) pair chosen by (length fraction x weight). See
+  nf-core/taxmarker#15.
+keywords:
+  - clustering
+  - weighting
+  - dereplication
+  - taxmarker
+components:
+  - vsearch/cluster
+  - weightfilter
+  - clusterselect
+input:
+  - ch_taxonomy:
+      type: file
+      description: |
+        Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...)
+        Structure: path(taxonomy)
+  - ch_sequences:
+      type: file
+      description: |
+        Unaligned, labeled sequences in FASTA format (same sequences named in taxonomy)
+        Structure: path(sequences)
+  - ch_sequence_weights:
+      type: value
+      description: |
+        Single item, itself a 1-element list wrapping the path to a two-column weight
+        table (seq_name<TAB>weight), or [] if not supplied. Wrapped so .combine() doesn't
+        flatten a bare [] payload away.
+  - min_weight:
+      type: value
+      description: Absolute weight cutoff, or null/empty to skip it.
+output:
+  - taxonomy:
+      type: file
+      description: |
+        Declared taxonomy, restricted to the chosen representatives
+        Structure: path(taxonomy)
+  - sequences:
+      type: file
+      description: |
+        One sequence per (cluster, taxon) pair
+        Structure: path(sequences)
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

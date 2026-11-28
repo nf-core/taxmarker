@@ -31,7 +31,8 @@ workflow PIPELINE_INITIALISATION {
     monochrome_logs   // boolean: Do not use coloured log outputs
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
-    input             //  string: Path to input samplesheet
+    taxonomy          //  string: Path to taxonomy file
+    sequences         //  string: Path to sequences file, aligned or not
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
@@ -77,7 +78,7 @@ workflow PIPELINE_INITIALISATION {
         before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
     }
 
-    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
+    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --taxonomy taxonomy.tsv --sequences sequences.alnfna --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
@@ -89,7 +90,7 @@ workflow PIPELINE_INITIALISATION {
         before_text,
         after_text,
         command,
-        null
+        true
     )
 
     //
@@ -99,33 +100,22 @@ workflow PIPELINE_INITIALISATION {
         nextflow_cli_args
     )
 
-    //
-    // Create channel from input file provided through params.input
-    //
-
-    channel
-        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
-        .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
-        }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
-        }
-        .set { ch_samplesheet }
+    // taxonomy is optional -- RESOLVETAXONOMY derives it from --sequences headers if
+    // not given (see workflows/taxmarker.nf). Emit '' (empty string), not [], when
+    // absent: [] is Nextflow's canonical "no file" sentinel for an optional path
+    // *process* input, but a channel that emits a bare [] gets its list silently
+    // spread/flattened away by .combine() (confirmed empirically -- it drops the
+    // slot entirely rather than pairing it up), desyncing a downstream .map{}
+    // closure's argument count. '' survives .combine() safely as an opaque scalar;
+    // workflows/taxmarker.nf converts it to the real [] right at RESOLVETAXONOMY's own
+    // input-tuple construction instead.
+    ch_taxonomy  = taxonomy ? channel.fromPath(taxonomy) : channel.value('')
+    ch_sequences = channel.fromPath(sequences)
 
     emit:
-    samplesheet = ch_samplesheet
-    versions    = ch_versions
+    taxonomy  = ch_taxonomy
+    sequences = ch_sequences
+    versions  = ch_versions
 }
 
 /*
@@ -202,7 +192,6 @@ def toolCitationText() {
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def citation_text = [
             "Tools used in the workflow included:",
-            "FastQC (Andrews 2010),",
             "MultiQC (Ewels et al. 2016)",
             "."
         ].join(' ').trim()
@@ -215,7 +204,6 @@ def toolBibliographyText() {
     // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
     // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
-            "<li>Andrews S, (2010) FastQC, URL: https://www.bioinformatics.babraham.ac.uk/projects/fastqc/).</li>",
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
         ].join(' ').trim()
 

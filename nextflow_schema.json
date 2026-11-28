@@ -10,18 +10,266 @@
             "type": "object",
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
-            "required": ["input", "outdir"],
+            "required": ["outdir", "sequences"],
             "properties": {
-                "input": {
+                "taxonomy": {
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
-                    "schema": "assets/schema_input.json",
-                    "mimetype": "text/csv",
-                    "pattern": "^\\S+\\.csv$",
-                    "description": "Path to comma-separated file containing information about the samples in the experiment.",
-                    "help_text": "You will need to create a design file with information about the samples in your experiment before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row. See [usage docs](https://nf-co.re/taxmarker/usage#samplesheet-input).",
-                    "fa_icon": "fas fa-file-csv"
+                    "pattern": "^\\S+\\.(tax|tsv)(\\.gz)?$",
+                    "description": "Path to a taxonomy file (.tax or .tsv, can be gzipped). If omitted, taxonomy is derived from --sequences record headers instead.",
+                    "help_text": "TSV file with two columns: Name and semicolon-separated taxonomy. If not given, each --sequences FASTA record's header must carry the taxonomy directly after its id (GTDB-style: `>id taxonomy;string`). If both are given, the file wins -- a warning is logged if header text is also present and being ignored.",
+                    "fa_icon": "fas fa-file-alt"
+                },
+                "sequences": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.(aln|phy|phylip|alnf[na]a|mfa|f[na]a|fa|afa|fasta)(\\.gz)?$",
+                    "description": "Path to a sequences file, aligned or not, in phylip (.phy or .phylip), Clustal (.aln) or fasta format (.fa, .fasta, .fna, .faa, .afa, .mfa, .alnfaa or .alnfna). Can be gzipped.",
+                    "help_text": "Unaligned content is aligned automatically: via hmmalign if --hmm is given, otherwise with MAFFT. See --hmm/--hmm_name and the usage page on aligning the sequences.",
+                    "fa_icon": "fas fa-file-alt"
+                },
+                "hmm": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Path to an HMM profile database, used to align --sequences via hmmalign if it turns out to be unaligned. Without it, unaligned input is aligned with MAFFT.",
+                    "help_text": "Not needed if --sequences is already a multiple sequence alignment (detected automatically). Unaligned input without an HMM is aligned with MAFFT in a single job, which suits up to some thousands of sequences; give an HMM for larger inputs. If the database holds more than one named profile, also set --hmm_name.",
+                    "fa_icon": "fas fa-dna"
+                },
+                "hmm_name": {
+                    "type": "string",
+                    "description": "Name of the specific profile to use from --hmm, if that database holds more than one (e.g. Barrnap's databases hold one profile per rRNA gene).",
+                    "fa_icon": "fas fa-tag"
+                },
+                "align_chunk_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 10000,
+                    "description": "Number of sequences each hmmalign job aligns, when --sequences is unaligned.",
+                    "help_text": "hmmalign needs about 60 kB of memory per sequence, so one job for hundreds of thousands of sequences needs tens of GB. The chunks are masked to the profile's match-state columns and concatenated in input order, so the alignment does not depend on this value.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "seqgrep": {
+                    "type": "string",
+                    "description": "Keep only --sequences records whose whole FASTA header matches this pattern, dropping the rest before anything else runs.",
+                    "help_text": "Passed to `seqkit grep -n -r -p`, so it's a regular expression matched against each record's whole header line (id plus any trailing text), not just the id. Useful for restricting a shared/combined reference set -- e.g. GTDB's own ssu_all distribution, which covers more than one domain in a single file -- to just the records wanted, by matching against embedded text such as `d__Archaea`.",
+                    "fa_icon": "fas fa-filter"
+                },
+                "unresolved_rank_pattern": {
+                    "type": "string",
+                    "default": "(?i)[ _]spp?[.]?$|Incertae[ _]sedis|^unidentified",
+                    "description": "Regular expression for placeholder ranks that are removed from the end of a lineage, like empty ranks.",
+                    "help_text": "Some databases fill ranks they cannot resolve with a named placeholder, such as `g__Orchidaceae_gen_Incertae_sedis` or `s__Orchidaceae_sp` in UNITE. The pattern (a Python regular expression, searched in the rank name without its rank prefix such as `g__`) is tested on the last rank of each lineage, and a match removes it, repeatedly, so the lineage ends at its last named rank. A lineage is never trimmed below its first rank. The default matches UNITE's placeholders and the `sp`/`spp` of BOLD and NCBI-derived names, in any case, and leaves GTDB's `Genus sp000001` alone. Placeholders followed by a named rank stay. The pattern is case-sensitive unless it starts with `(?i)`, which must come first, and it must not contain a single quote. To trim only empty ranks, give an empty string with an equals sign: `--unresolved_rank_pattern=''`.",
+                    "fa_icon": "fas fa-scissors",
+                    "pattern": "^[^']*$"
+                },
+                "upstream": {
+                    "type": "string",
+                    "enum": ["GTDB"],
+                    "description": "Name of an upstream data source this run's --sequences/--taxonomy came from, to enable source-specific pipeline behaviour. Currently only 'GTDB' is recognised: translates --gtdb_bac120_metadata/--gtdb_ar53_metadata into --sequence_weights automatically.",
+                    "fa_icon": "fas fa-database"
+                },
+                "gtdb_bac120_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "GTDB bacterial (bac120) genome metadata table (gzip-ok). Required (with/without --gtdb_ar53_metadata) when --upstream is 'GTDB'.",
+                    "help_text": "GTDB's own per-release `bac120_metadata_*.tsv[.gz]` file, unmodified. See nf-core/taxmarker#15 for the weight formula this feeds.",
+                    "fa_icon": "fas fa-table"
+                },
+                "gtdb_ar53_metadata": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "GTDB archaeal (ar53) genome metadata table (gzip-ok). Required (with/without --gtdb_bac120_metadata) when --upstream is 'GTDB'.",
+                    "help_text": "GTDB's own per-release `ar53_metadata_*.tsv[.gz]` file, unmodified. See nf-core/taxmarker#15 for the weight formula this feeds.",
+                    "fa_icon": "fas fa-table"
+                },
+                "skip_clustering": {
+                    "type": "boolean",
+                    "description": "Skip WEIGHTED_CLUSTERING entirely and run every sequence straight through, unclustered.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "sequence_weights": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Path to a two-column table (sequence_id<TAB>weight) used to pick a representative sequence per (cluster, taxon) pair. Sequences absent from the table default to weight 1. Can be gzipped.",
+                    "help_text": "The clustering/selection logic only ever sees this generic table -- it doesn't matter where the weights came from (e.g. a GTDB-metadata-derived translation, see --upstream). Omit entirely to treat every sequence as weight 1, which degrades gracefully to picking the longest sequence per (cluster, taxon) pair. If both this and --upstream are given, this file wins (with a warning), the same precedent as --taxonomy winning over embedded taxonomy text.",
+                    "fa_icon": "fas fa-balance-scale"
+                },
+                "min_weight": {
+                    "type": "number",
+                    "description": "Absolute weight cutoff: sequences below this are excluded before clustering, regardless of --sequence_weights. Unset by default -- has no effect unless both this and --sequence_weights are given.",
+                    "help_text": "Relative per-cluster selection alone can't exclude a badly-mislabeled sequence that never co-clusters with a competitor (e.g. a singleton cluster) -- this cutoff is the only mechanism that can. No default at the generic-mechanism level, by design: whichever weight-producing translation supplies --sequence_weights (e.g. a GTDB-specific one) is responsible for recommending its own cutoff, calibrated to its own scale.",
+                    "fa_icon": "fas fa-cut"
+                },
+                "cluster_identity": {
+                    "type": "number",
+                    "default": 1.0,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "VSEARCH clustering identity threshold (0-1) applied before representative selection.",
+                    "help_text": "1.0 (the default) is a safe no-op: pure dereplication of exact/near-identical duplicates. Lower it for more aggressive input-size reduction on very large datasets.",
+                    "fa_icon": "fas fa-object-group"
+                },
+                "skip_raxtax": {
+                    "type": "boolean",
+                    "description": "Skip the raxtax prefilter and run every sequence straight through the full EPA-ng-based placement pipeline.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "raxtax_filter_rank": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "Taxonomic rank at which raxtax's self-classification must agree with the declared taxonomy, counted from the most specific rank (1) upward. A sequence disagreeing at this one rank is flagged as a mislabel and skips EPA-ng placement.",
+                    "help_text": "A sequence whose taxon at this rank has no other sequence in the input is not checked: raxtax never sees the sequence itself when classifying it, so it cannot predict that taxon.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "raxtax_min_confidence": {
+                    "type": "number",
+                    "default": 0.9,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum raxtax confidence at `--raxtax_filter_rank` for a disagreement to be flagged as a mislabel.",
+                    "help_text": "Sequences raxtax is less sure about are not flagged and go on to EPA-ng placement, which checks them anyway.",
+                    "fa_icon": "fas fa-percentage"
+                },
+                "export_n_per_species": {
+                    "type": ["string", "integer"],
+                    "pattern": "^\\s*(\\d+|all)(\\s*,\\s*(\\d+|all))*\\s*$",
+                    "description": "Export reference FASTA files with at most this many sequences per species, e.g. `1,5,all` for one set of files per number, `all` meaning no limit.",
+                    "help_text": "Each number gives three gzipped FASTA files in `export/`: one for DADA2's `addSpecies()`, one for its `assignTaxonomy()`, and one keeping the original headers. Only sequences that passed every check are exported, cluster members inheriting their representative's verdict. Within a species, sequences are ranked by weight (see --sequence_weights) times length.",
+                    "fa_icon": "fas fa-file-export"
+                },
+                "run_reference": {
+                    "type": "boolean",
+                    "description": "Build a reference phylogeny and model for phylogenetic placement of new sequences, from one sequence per species.",
+                    "help_text": "The sequences are the ones in the one-per-species export (`export/*.n1.*`, which is written even without --export_n_per_species), taken from the alignment. The tree is built under the taxonomy constraint, like the one the placement test uses, and RAxML-NG selects the model unless --raxmlng_model names one. The tree, model, alignment and taxonomy go to `export/`. This is a second RAxML-NG search.",
+                    "fa_icon": "fas fa-tree"
+                },
+                "skip_gapfilter": {
+                    "type": "boolean",
+                    "description": "For already-aligned or MAFFT-aligned input: skip filtering out sequences with too high a proportion of alignment gaps, and run every sequence straight through the rest of the pipeline.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "min_nongap": {
+                    "type": "number",
+                    "default": 0.3,
+                    "description": "For already-aligned or MAFFT-aligned input: minimum proportion of non-gap columns a sequence must have in the alignment to be kept. Sequences below this are too short/incomplete to place reliably, and are reported separately instead of being placed.",
+                    "help_text": "A taxonomically broad reference alignment is naturally wide, with many columns that are only real sequence for a handful of divergent taxa -- a low default keeps that from penalising genuinely full-length sequences. Raise it for a narrower (e.g. single-genus) alignment where a stricter threshold makes sense. Only applies to input that was already aligned on entry or aligned by MAFFT -- see --min_profile_cover for hmmalign-derived input.",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "skip_profile_cover": {
+                    "type": "boolean",
+                    "description": "For hmmalign-derived input: skip filtering out sequences that cover too little of the HMM profile, and run every sequence straight through the rest of the pipeline.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "min_profile_cover": {
+                    "type": "number",
+                    "default": 0.8,
+                    "description": "For hmmalign-derived input: minimum proportion of the HMM profile's match-state columns a sequence must cover to be kept. Sequences below this are too short/incomplete to place reliably, and are reported separately instead of being placed.",
+                    "help_text": "A masked hmmalign-derived alignment's width is fixed by the HMM profile, so coverage measures how complete a sequence is directly. That is why the default is higher than --min_nongap's. Real data rarely separate cleanly into full-length and partial sequences, so see also --min_profile_cover_rescue.",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "min_profile_cover_rescue": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "For hmmalign-derived input: keep the best-covered sequence of any taxon that has none at or above --min_profile_cover, if it covers at least this proportion of the profile.",
+                    "help_text": "Many taxa, especially those known only from MAGs, have only partial 16S sequences. A fragment still carries phylogenetic signal, so this keeps one per taxon rather than losing the taxon altogether. Set it to --min_profile_cover or higher to disable the rescue.",
+                    "fa_icon": "fas fa-life-ring"
+                },
+                "skip_sativa": {
+                    "type": "boolean",
+                    "description": "Skip the phylogenetic placement subworkflow (reference tree, leave-one-out placement, scoring) entirely.",
+                    "help_text": "Turns the rest of the pipeline into a general-purpose taxonomy-resolution/alignment/prefilter QC tool: taxonomy resolution, name-consistency checking, optional alignment (via hmmalign or MAFFT) and gap/profile-coverage filtering, and the optional raxtax prefilter all still run as configured. The final mislabels report then contains only raxtax-flagged mislabels (or is empty if --skip_raxtax is also set) -- no EPA-ng-based placement is performed. The cleaned, filtered alignment and taxonomy are still published, under whichever upstream step (raxtax prefilter, gap/profile-coverage filter, or name-consistency check) produced them last.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "taxcode": {
+                    "type": "string",
+                    "default": "bac",
+                    "enum": ["bac", "bot", "zoo", "vir"],
+                    "description": "Taxonomic code of the input data, passed to sativa-epang: bac(teriological), bot(anical), zoo(logical) or vir(ological). Governs its nomenclature-revision suggestions.",
+                    "fa_icon": "fas fa-dna"
+                },
+                "raxmlng_model": {
+                    "type": "string",
+                    "default": "DNA",
+                    "description": "RAxML-NG model for the reference tree, for example GTR+FO+I+R10. The default DNA runs model selection first.",
+                    "help_text": "Any model string RAxML-NG accepts for --model. A fixed model skips model selection, which can take a quarter or more of the tree building time on large alignments.",
+                    "fa_icon": "fas fa-project-diagram"
+                },
+                "raxmlng_reference_model": {
+                    "type": "string",
+                    "description": "RAxML-NG model for the tree built by --run_reference, for example GTR+FO+I+R10. Unset uses --raxmlng_model.",
+                    "help_text": "Any model string RAxML-NG accepts for --model; DNA runs model selection. It is separate from --raxmlng_model so that the tree used for the placement test and the reference tree can be built under different models.",
+                    "fa_icon": "fas fa-project-diagram"
+                },
+                "raxmlng_fast": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Build the reference tree with the RAxML-NG fast search. Use false for the thorough search.",
+                    "help_text": "Runs one parsimony starting tree and a simplified topology search with an early stopping rule (raxml-ng --fast), still under the taxonomy constraint. It is much faster than the thorough adaptive search on large alignments, at the price of a somewhat less optimal tree. On 5,226 archaeal 16S sequences it was about ten times faster, the log-likelihood was 0.03% lower, and the flagged sequences overlapped as much as those of two fast searches with different seeds.",
+                    "fa_icon": "fas fa-bolt"
+                },
+                "raxmlng_seed": {
+                    "type": "integer",
+                    "default": 42,
+                    "description": "Random seed for the RAxML-NG reference tree search.",
+                    "help_text": "Different seeds can give somewhat different trees, and so somewhat different flags, especially with --raxmlng_fast. A resumed run with another seed re-runs the tree search and everything after it and overwrites the published files, so use a new --outdir.",
+                    "fa_icon": "fas fa-dice"
+                },
+                "raxmlng_blopt": {
+                    "type": "string",
+                    "enum": ["nr_fast", "nr_safe", "nr_oldstyle"],
+                    "description": "Branch length optimisation method of RAxML-NG (--blopt). Unset uses the RAxML-NG default.",
+                    "help_text": "nr_safe is slower than the default but avoids a branch length error (BRLEN out-of-bounds) that RAxML-NG can raise on alignments with near-empty sequences.",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "run_divided_tree_search": {
+                    "type": "boolean",
+                    "description": "Build the reference trees by searching parts of the taxonomy separately and grafting the results, for large inputs.",
+                    "help_text": "The taxonomy is cut into parts of at most --tree_part_max_tips sequences, each part is searched under its own part of the taxonomy constraint (in parallel), the part trees are grafted into the top tree and one RAxML-NG evaluation gives branch lengths and model parameters of the full tree. The result has the same form as the whole-tree search and breaks no taxon of the taxonomy. With --raxmlng_model DNA (the default) the model is selected once, on the top part, which holds representatives of every taxon, and used for all parts; a fixed model is used as given. Model selection for AA or AUTO is not supported with the divided search.",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "tree_part_max_tips": {
+                    "type": "integer",
+                    "default": 2000,
+                    "minimum": 4,
+                    "description": "Largest number of sequences in a part searched by --run_divided_tree_search.",
+                    "help_text": "The top level, where the closed parts are represented by a few sequences each, is also kept within this size.",
+                    "fa_icon": "fas fa-compress-arrows-alt"
+                },
+                "tree_part_min_tips": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 2,
+                    "description": "Smallest taxon that --run_divided_tree_search searches as a part of its own, unless a node cannot otherwise be brought down to --tree_part_max_tips.",
+                    "fa_icon": "fas fa-compress"
+                },
+                "tree_part_reps": {
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 1,
+                    "description": "Number of sequences representing a searched part in the part above it.",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "tree_part_outgroups": {
+                    "type": "integer",
+                    "default": 4,
+                    "minimum": 1,
+                    "description": "Number of sequences from neighbouring parts added to each part as outgroup, so that its tree can be rooted and grafted.",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "folds_per_job": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of leave-one-out folds each placement job places. Unset places them all in one job.",
+                    "help_text": "The number of jobs follows from this and the fold count, so no job is ever handed an empty range. Results are merged before scoring and do not depend on this value, so it is purely a way to trade more, smaller jobs for fewer, longer ones: wall time per job scales with the folds it places, and peak memory with how many run at once.",
+                    "fa_icon": "fas fa-layer-group"
                 },
                 "outdir": {
                     "type": "string",

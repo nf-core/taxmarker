@@ -23,4 +23,5 @@ template:
   skip_features:
     - igenomes
     - gpu
-  version: 1.0.0dev
+    - fastqc
+  version: 1.0.0

@@ -1,0 +1,212 @@
+{
+    "OriginalLabelExclusion is kept, other extra .mis columns are ignored": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,87c21e0831d561ba5fd1ce9fdd59bb0d"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,4dbe2b6191f101721d6acc09c2aa5637"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:55:14.481242695",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "no flagged sequences": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,c9cb3fda6f15e93aeb2cf0a4e6347661"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,20397a5f5f206332a48d61a883d934cf"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:54:49.967982885",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "taxonomy paths differ only in depth -- mismatch_rank is never null": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,3de79cf039259d631caf231b930df779"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,9d7c1930faaca73281a46b9b704e7de4"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:55:05.844627983",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "stem placement: lwr 0.510 with an exclusion near 1": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,dc6d10a7600b7e2e0c17cc80bdad36f2"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,4dbe2b6191f101721d6acc09c2aa5637"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:55:22.383302882",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "below-threshold confidence excluded from mislabels but still scored": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,e0ef22d64ab99bc4ff7e957d8d617206"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,1f7bc16eec726bb9f08beed2666a34fd"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:54:58.2678675",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "stub": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:55:30.776218764",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    },
+    "one flagged sequence": {
+        "content": [
+            {
+                "mislabels": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.mislabels.tsv:md5,b4e3b06f275d5e5e78acb60fb1d4c125"
+                    ]
+                ],
+                "summary": [
+                    [
+                        {
+                            "id": "test"
+                        },
+                        "test.summary.txt:md5,4dbe2b6191f101721d6acc09c2aa5637"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,0648ee041aad9fcfbd9b50c62d50cb69"
+                ]
+            }
+        ],
+        "timestamp": "2026-11-26T13:54:42.08431117",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.0"
+        }
+    }
+}

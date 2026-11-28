@@ -1,0 +1,92 @@
+{
+    "versions": {
+        "content": [
+            {
+                "CHECKALIGNED": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CHECKNAMECONSISTENCY": {
+                    "biopython": 1.84,
+                    "python": "3.12.12"
+                },
+                "CLUSTERSELECT": {
+                    "python": "3.12.12"
+                },
+                "EMBOSS_SEQRET": {
+                    "emboss": "6.6.0.0"
+                },
+                "FIND_CONCATENATE": {
+                    "coreutils": 9.4,
+                    "find": "4.6.0",
+                    "pigz": 2.8
+                },
+                "HMMER_ESLALIMASK": {
+                    "easel": 0.49,
+                    "hmmer": 3.4
+                },
+                "HMMER_ESLREFORMAT": {
+                    "easel": 0.49,
+                    "hmmer": 3.4
+                },
+                "HMMER_HMMALIGN": {
+                    "hmmer": 3.4
+                },
+                "HMMER_HMMFETCH": {
+                    "hmmer": 3.4
+                },
+                "PROFILECOVER": {
+                    "python": "3.12.12"
+                },
+                "RAXMLNG_SEARCH": {
+                    "raxmlng": "2.0.3"
+                },
+                "RAXTAX": {
+                    "raxtax": "1.6.0"
+                },
+                "RAXTAXFILTER": {
+                    "python": "3.12.12"
+                },
+                "RAXTAXFORMAT": {
+                    "python": "3.12.12"
+                },
+                "RESOLVETAXONOMY": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_LOOPLACE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOSCORE": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_LOOTASKS": {
+                    "sativaepang": "0.10.2"
+                },
+                "SATIVAEPANG_MISREPORT": {
+                    "python": "3.12.12"
+                },
+                "SATIVAEPANG_REFERENCE": {
+                    "sativaepang": "0.10.2"
+                },
+                "TAXONOMYTREE": {
+                    "python": "3.12.12"
+                },
+                "VSEARCH_CLUSTER": {
+                    "samtools": "1.23.1",
+                    "vsearch": "2.31.0"
+                },
+                "WEIGHTFILTER": {
+                    "python": "3.12.12"
+                },
+                "Workflow": {
+                    "nf-core/taxmarker": "v1.0.0"
+                }
+            }
+        ],
+        "timestamp": "2026-09-22T12:08:21.25688458",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}

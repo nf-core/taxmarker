@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "ensure_aligned"
+description: |
+  Transparently accept unaligned input alongside already-aligned input, with no
+  separate mode-switch param. Content already the same length passes through
+  unchanged; content that isn't is aligned via hmmalign against an HMM profile
+  (hmm, optionally a single named profile from it via hmm_name), then converted
+  back to plain FASTA, or, when no HMM is given, aligned from scratch with MAFFT.
+keywords:
+  - alignment
+  - hmmer
+  - hmmalign
+  - mafft
+  - taxmarker
+components:
+  - checkaligned
+  - mafft/align
+  - hmmer/hmmfetch
+  - hmmer/hmmalign
+  - hmmer/eslalimask
+  - hmmer/eslreformat
+  - find/concatenate
+input:
+  - ch_sequences:
+      type: file
+      description: |
+        Sequences in FASTA format, aligned or not
+        Structure: path(sequences)
+      pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+  - hmm:
+      type: string
+      description: |
+        Path to an HMM profile database, used to align ch_sequences via hmmalign if it
+        turns out to be unaligned. Null/empty to align unaligned input from scratch
+        with MAFFT instead (already-aligned input needs neither).
+  - hmm_name:
+      type: string
+      description: |
+        Name of a specific profile to extract from hmm, if that database holds more
+        than one. Null/empty otherwise.
+  - chunk_size:
+      type: integer
+      description: |
+        Number of sequences each hmmalign job aligns. The masked chunks are
+        concatenated in input order, so the alignment does not depend on it.
+output:
+  - alignment_native:
+      type: file
+      description: |
+        The input, when it was already aligned on entry (passed through unchanged),
+        or aligned by MAFFT when it was unaligned and no HMM was given.
+        Empty channel when the input was unaligned and aligned via hmmalign instead.
+        Structure: path(alignment.fasta)
+      pattern: "*.fasta"
+  - alignment_from_hmm:
+      type: file
+      description: |
+        The input, when it was unaligned on entry: aligned via hmmalign then masked
+        down to the HMM's match-state columns only. Empty channel when the input
+        was already aligned or no HMM was given.
+        Structure: path(alignment.fasta)
+      pattern: "*.fasta"
+  - versions:
+      type: file
+      description: |
+        File containing software versions
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -1,0 +1,45 @@
+nextflow_pipeline {
+
+    name "Test pipeline with real GTDB data, taxonomy embedded in FASTA headers"
+    script "../main.nf"
+    tag "pipeline"
+    profile "test_gtdb_embedded"
+
+    test("-profile test_gtdb_embedded, raxtax disabled") {
+
+        when {
+            params {
+                outdir      = "$outputDir"
+                skip_raxtax = true
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def mislabels = path("$outputDir/mislabels/user-alignment.mislabels.tsv").text
+            def summary   = path("$outputDir/sativaepang/user-alignment.summary.txt").text
+
+            assertAll(
+                // No --taxonomy given: RESOLVETAXONOMY derived it from the combined
+                // fixture's own GTDB-style headers instead.
+                { assert new File("$outputDir/resolvetaxonomy").exists() },
+                // This fixture's 121 real sequences are heavily duplicated per species
+                // (only 10 unique species overall), so WEIGHTED_CLUSTERING's default
+                // (100% identity, uniform weight) collapses most of that duplication to
+                // one representative per (cluster, taxon) before GAPFILTER even runs --
+                // the intended effect of nf-core/taxmarker#15, not a regression.
+                // Confirmed stable on this fixture; not hand-derivable like the old
+                // "121 minus N" arithmetic since vsearch's greedy clustering isn't.
+                { assert summary.contains('sequences scored: 56') },
+                // Same DupHaloA/DupSulfoA positive control as test_gtdb, caught via
+                // the taxonomy derived from headers rather than a separate file.
+                { assert mislabels.contains('DupHaloA') },
+                { assert mislabels.contains('DupSulfoA') },
+                { assert snapshot(removeNextflowVersion("$outputDir/pipeline_info/nf_core_taxmarker_software_mqc_versions.yml")).match("versions") },
+            )
+        }
+
+    }
+
+}

@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "raxtax"
+description: Fast k-mer-based non-Bayesian taxonomic classifier for barcoding DNA sequences
+keywords:
+  - taxonomy
+  - classification
+  - barcoding
+  - kmer
+tools:
+  - "raxtax":
+      description: "raxtax is a k-mer-based non-Bayesian Taxonomic Classifier."
+      homepage: "https://github.com/noahares/raxtax"
+      documentation: "https://github.com/noahares/raxtax#readme"
+      tool_dev_url: "https://github.com/noahares/raxtax"
+      doi: "10.1093/bioinformatics/btaf620"
+      licence: ["AGPL v3-or-later"]
+      identifier: null
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. `[ id:'sample1' ]`
+    - query:
+        type: file
+        description: Query sequences in FASTA format (optionally gzipped). Headers are relaxed, e.g. `>query1`.
+        pattern: "*.{fa,fasta,fna,fasta.gz,fna.gz}"
+  - - database:
+        type: file
+        description: |
+          Reference database in FASTA format (optionally gzipped). Each header must carry a
+          `tax=<lineage>;` segment, e.g. `>metadata;tax=Phylum,Class,Order,Family,Genus,Species;`.
+        pattern: "*.{fa,fasta,fna,fasta.gz,fna.gz}"
+
+output:
+  out:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. `[ id:'sample1' ]`
+      - "*/raxtax.out":
+          type: file
+          description: |
+            Full classification result: one line per query/database-hit pair with confidence
+            above 0.01 (tab-separated: query, lineage, per-rank confidences, local signal,
+            global signal), or a single best-match line if none clears that threshold.
+          pattern: "*/raxtax.out"
+  log:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. `[ id:'sample1' ]`
+      - "*/raxtax.log":
+          type: file
+          description: Log file, including exact-match and inconsistent-lineage (possible mislabeling) messages.
+          pattern: "*/raxtax.log"
+  tsv:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. `[ id:'sample1' ]`
+      - "*/raxtax.tsv":
+          type: file
+          description: Spreadsheet-friendly variant of raxtax.out (lineage/confidence interleaved), only produced when `--tsv` is passed via ext.args.
+          pattern: "*/raxtax.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - raxtax:
+          type: string
+          description: The name of the tool
+      - raxtax --version:
+          type: eval
+          description: The expression to obtain the version of the tool
+
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - raxtax:
+          type: string
+          description: The name of the tool
+      - raxtax --version:
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

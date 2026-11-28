@@ -1,0 +1,35 @@
+{
+    "treedivide - stub": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "test"
+                    },
+                    "job_000.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ]
+            ],
+            [
+                [
+                    {
+                        "id": "test"
+                    },
+                    "job_000.nwk:md5,d41d8cd98f00b204e9800998ecf8427e"
+                ]
+            ],
+            [
+                [
+                    {
+                        "id": "test"
+                    },
+                    "test.plan.json:md5,b9373cd99121024bd97f1d672bb06f6a"
+                ]
+            ]
+        ],
+        "timestamp": "2026-10-23T08:35:48.34240919",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}

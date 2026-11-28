@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "raxtaxformat"
+description: |
+  Convert an aligned FASTA and its taxonomy TSV into a single degapped FASTA
+  with raxtax-style `>id;tax=<lineage>;` headers, suitable for use as both
+  the database and query input to a raxtax self-classification run.
+keywords:
+  - taxonomy
+  - fasta
+  - raxtax
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - alignment:
+        type: file
+        description: Aligned, labeled sequences in FASTA format.
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+    - taxonomy:
+        type: file
+        description: Tab-separated taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+output:
+  fasta:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - raxtax_fasta:
+          type: file
+          description: Degapped FASTA with raxtax `>id;tax=<lineage>;` headers.
+          pattern: "*.raxtax.fasta"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -1,0 +1,78 @@
+name: "sativaepang_misreport"
+description: |
+  Translate sativa-epang's `-stage loo-score` `.mis` report into the pipeline's own
+  `*.mislabels.tsv` / `*.summary.txt` schema, matching the one the pipeline's raxtax
+  prefilter also produces, so both sources merge into one final report. A row is only
+  reported as a mislabel when its confidence clears `--min-lwr` (default 0.5, settable
+  via `ext.args`) -- rows below the threshold still count toward "sequences scored".
+keywords:
+  - phylogenetics
+  - taxonomy
+  - mislabelling
+tools:
+  - "python":
+      description: "Python programming language"
+      homepage: "https://www.python.org/"
+      documentation: "https://www.python.org/"
+      licence:
+        - "PSF-2.0"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+    - mis:
+        type: file
+        description: The `.mis` file produced by `sativaepang/looscore`
+        pattern: "*.mis"
+    - taskdir:
+        type: directory
+        description: |
+          The `*.l1o_tasks` directory produced by `sativaepang/looplace`, read only
+          for its `manifest.json`'s `n_leaves` (the number of leaf sequences actually
+          scored -- distinct from `n_folds`, the number of leave-batch-out folds,
+          25 by default regardless of input size) to report the total scored.
+        pattern: "*.l1o_tasks"
+output:
+  mislabels:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.mislabels.tsv":
+          type: file
+          description: |
+            Putative mislabels, one row per flagged sequence (seq_name, original_label,
+            predicted_label, lwr, original_label_exclusion, mismatch_rank, method).
+            original_label_exclusion is sativa-epang's OriginalLabelExclusion, the
+            placement weight outside the declared taxon at the mislabelled rank (NA when
+            the `.mis` has no such column). A stem placement reports lwr 0.51 with an
+            exclusion near 1: confidently outside the declared taxon, but undecided
+            between the neighbouring taxon and its parent.
+          pattern: "*.mislabels.tsv"
+  summary:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[ id:'sample1' ]`
+      - "*.summary.txt":
+          type: file
+          description: Run statistics (sequences scored, putative mislabel count).
+          pattern: "*.summary.txt"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

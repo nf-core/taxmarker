@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "checkaligned"
+description: |
+  Determine whether a FASTA file is already a multiple sequence alignment (every
+  record the same length) or unaligned raw sequences, routing it to the matching
+  output channel unchanged so downstream code can branch on which one fired.
+keywords:
+  - alignment
+  - fasta
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - fasta:
+        type: file
+        description: Sequences in FASTA format, aligned or not.
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+output:
+  aligned:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - aligned_fasta:
+          type: file
+          description: The input, unchanged, emitted here if every record was the same length.
+          pattern: "*.aligned.fasta"
+  unaligned:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - unaligned_fasta:
+          type: file
+          description: The input, unchanged, emitted here if record lengths varied.
+          pattern: "*.unaligned.fasta"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+      - biopython:
+          type: string
+          description: The version of Biopython
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+      - biopython:
+          type: string
+          description: The version of Biopython
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

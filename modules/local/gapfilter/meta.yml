@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "gapfilter"
+description: |
+  Drop sequences from an alignment whose non-gap proportion falls below a threshold
+  (--min-nongap) -- too short/incomplete to place reliably -- reporting them
+  separately rather than silently discarding them, and returning the surviving
+  taxonomy/alignment pair unchanged in schema.
+keywords:
+  - alignment
+  - filtering
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - alignment:
+        type: file
+        description: Aligned, labeled sequences in FASTA format (same sequences named in taxonomy).
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_taxonomy:
+          type: file
+          description: Declared taxonomy for sequences at or above --min-nongap.
+          pattern: "*.gapfiltered.tax"
+  alignment:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_alignment:
+          type: file
+          description: Alignment subset to sequences at or above --min-nongap.
+          pattern: "*.gapfiltered.fasta"
+  excluded:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - excluded_tsv:
+          type: file
+          description: Sequences dropped for being too gappy (seq_name, non_gap_proportion, min_nongap_threshold).
+          pattern: "*.excluded.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

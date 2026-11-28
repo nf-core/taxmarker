@@ -1,0 +1,175 @@
+nextflow_process {
+
+    name "Test Process PROFILECOVER"
+    script "../main.nf"
+    process "PROFILECOVER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/profilecover"
+
+    test("taxmarker - pipeline default threshold (0.8)") {
+
+        // No local config override: exercises conf/modules.config's real ext.args.
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'profilecover_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def alignment = path(process.out.alignment[0][1]).text
+            def excluded  = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                // SeqGood1 (1.0) and SeqGood2 (exactly 0.8, the default threshold
+                // -- >= not >) clear the bar and are kept.
+                { assert taxonomy.contains('SeqGood1') },
+                { assert taxonomy.contains('SeqGood2') },
+                { assert alignment.contains('>SeqGood1') },
+                { assert alignment.contains('>SeqGood2') },
+                // SeqBad1 (0.3) and SeqBad2 (0.0) are the only sequences of their taxa,
+                // but below the default rescue floor (0.5): dropped, but reported.
+                { assert !taxonomy.contains('SeqBad1') },
+                { assert !alignment.contains('>SeqBad1') },
+                { assert excluded.contains('SeqBad1\t0.3000\t0.8\texcluded') },
+                { assert !taxonomy.contains('SeqBad2') },
+                { assert !alignment.contains('>SeqBad2') },
+                { assert excluded.contains('SeqBad2\t0.0000\t0.8\texcluded') },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - lenient threshold (0.2) keeps SeqBad1 too") {
+
+        config "./nextflow.config"
+
+        when {
+            params {
+                module_args = '--min-coverage 0.2'
+            }
+            process {
+                """
+                input[0] = [
+                    [ id:'profilecover_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+            def excluded = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                // At 0.2, SeqBad1 (0.3 coverage) now clears the bar too...
+                { assert taxonomy.contains('SeqBad1') },
+                // ...but SeqBad2 (0.0 coverage) never can, regardless of threshold.
+                { assert !taxonomy.contains('SeqBad2') },
+                { assert excluded.contains('SeqBad2') },
+                { assert !excluded.contains('SeqBad1') },
+            )
+        }
+
+    }
+
+    test("taxmarker - rescue the best fragment of taxa with nothing above threshold") {
+
+        config "./nextflow.config"
+
+        when {
+            params {
+                module_args = '--min-coverage 0.8 --rescue-floor 0.2'
+            }
+            process {
+                """
+                def tax = file("\${workDir}/rescue.tax")
+                tax.text = [
+                    'A_full\\tBacteria;PhylumA;SpeciesA',
+                    'A_frag\\tBacteria;PhylumA;SpeciesA',
+                    'B_best\\tBacteria;PhylumA;SpeciesB',
+                    'B_frag\\tBacteria;PhylumA;SpeciesB',
+                    'C_tiny\\tBacteria;PhylumA;SpeciesC',
+                ].join('\\n') + '\\n'
+                def aln = file("\${workDir}/rescue.fasta")
+                aln.text = [
+                    '>A_full', 'ACGTACGTAC',
+                    '>A_frag', 'ACG-------',
+                    '>B_best', 'ACGTA-----',
+                    '>B_frag', 'ACG-------',
+                    '>C_tiny', 'A---------',
+                ].join('\\n') + '\\n'
+                input[0] = [ [ id:'profilecover_rescue' ], tax, aln ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def alignment = path(process.out.alignment[0][1]).text
+            def excluded  = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                { assert taxonomy.contains('A_full') },
+                // SpeciesA already has a sequence above threshold.
+                { assert !taxonomy.contains('A_frag') },
+                // SpeciesB has none: only its best-covered sequence is kept.
+                { assert taxonomy.contains('B_best') },
+                { assert alignment.contains('>B_best') },
+                { assert excluded.contains('B_best\t0.5000\t0.8\trescued') },
+                { assert !taxonomy.contains('B_frag') },
+                // SpeciesC's only sequence is below the floor.
+                { assert !taxonomy.contains('C_tiny') },
+                { assert excluded.contains('A_frag\t0.3000\t0.8\texcluded') },
+                { assert excluded.contains('B_frag\t0.3000\t0.8\texcluded') },
+                { assert excluded.contains('C_tiny\t0.1000\t0.8\texcluded') },
+            )
+        }
+
+    }
+
+    test("taxmarker - default threshold - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'profilecover_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

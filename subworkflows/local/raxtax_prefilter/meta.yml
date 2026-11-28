@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "raxtax_prefilter"
+description: |
+  Fast raxtax-based self-classification prefilter ahead of the pipeline's expensive
+  EPA-ng leave-one-out placement stage. Runs on unaligned sequences, already normalised
+  to FASTA by the caller: degaps and formats them for raxtax, self-classifies
+  (database == query), and drops sequences whose best hit disagrees with the declared
+  taxonomy at params.raxtax_filter_rank -- reporting them directly as mislabels instead
+  of passing them on for alignment and placement.
+keywords:
+  - taxonomy
+  - raxtax
+  - prefilter
+  - taxmarker
+components:
+  - raxtaxformat
+  - raxtax
+  - raxtaxfilter
+input:
+  - ch_taxonomy:
+      type: file
+      description: |
+        Declared taxonomy labels
+        Structure: path(taxonomy.tsv), seq_name<TAB>rank1;rank2;...
+      pattern: "*.{tax,tsv}"
+  - ch_sequences:
+      type: file
+      description: |
+        Labeled sequences, aligned or not
+        Structure: path(sequences), FASTA, Clustal or PHYLIP (auto-detected)
+      pattern: "*"
+output:
+  - taxonomy:
+      type: file
+      description: |
+        Declared taxonomy for sequences NOT flagged by raxtax
+        Structure: path(taxonomy.tsv)
+      pattern: "*.filtered.tax"
+  - sequences:
+      type: file
+      description: |
+        Sequences (FASTA) subset to those NOT flagged by raxtax
+        Structure: path(sequences.fasta)
+      pattern: "*.filtered.fasta"
+  - mislabels:
+      type: file
+      description: |
+        Sequences raxtax flagged as likely mislabeled, in the same schema as
+        SATIVASCORE's own mislabels output (method column set to "raxtax")
+        Structure: [ val(meta), path(mislabels.tsv) ]
+      pattern: "*.mislabels.tsv"
+  - versions:
+      type: file
+      description: |
+        File containing software versions
+        Structure: [ path(versions.yml) ]
+      pattern: "versions.yml"
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

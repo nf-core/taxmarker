@@ -1,0 +1,48 @@
+{
+    "rewritten": {
+        "content": [
+            "SeqA\tBacteria;PhylumA;ClassA\nSeqB_1_\tBacteria;PhylumA;ClassB\nSeqC\tBacteria;PhylumB;ClassC\nSeqD_2\tBacteria;PhylumB;ClassD\nSeqE_3\tBacteria;PhylumC;ClassE\n",
+            ">SeqA\nACGTACGTAC\n>SeqB_1_\nACGTACGTAG\n>SeqC\nACGTTCGTAC\n>SeqD_2\nACGATCGTAC\n>SeqE_3\nACGTAACGTC\n"
+        ],
+        "timestamp": "2026-08-01T17:30:20.200530201",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    },
+    "taxmarker - consistent names, one with punctuation - stub": {
+        "content": [
+            {
+                "0": [
+                    [
+                        {
+                            "id": "checkname_test"
+                        },
+                        "checkname_test.checked.tax:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "checkname_test.checked.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "1": [
+                    "versions.yml:md5,8dae734ddcb12b7c9db883ff1c530779"
+                ],
+                "checked": [
+                    [
+                        {
+                            "id": "checkname_test"
+                        },
+                        "checkname_test.checked.tax:md5,d41d8cd98f00b204e9800998ecf8427e",
+                        "checkname_test.checked.fasta:md5,d41d8cd98f00b204e9800998ecf8427e"
+                    ]
+                ],
+                "versions": [
+                    "versions.yml:md5,8dae734ddcb12b7c9db883ff1c530779"
+                ]
+            }
+        ],
+        "timestamp": "2026-07-22T09:01:31.404640069",
+        "meta": {
+            "nf-test": "0.9.5",
+            "nextflow": "26.04.6"
+        }
+    }
+}

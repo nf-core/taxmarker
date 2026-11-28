@@ -1,0 +1,19 @@
+{
+    "treegraft - stub": {
+        "content": [
+            [
+                [
+                    {
+                        "id": "test"
+                    },
+                    "test.grafted.nwk:md5,2a17cb9cbac2766ca9124f2f513e458a"
+                ]
+            ]
+        ],
+        "timestamp": "2026-10-22T21:00:46.727770612",
+        "meta": {
+            "nf-test": "0.9.4",
+            "nextflow": "26.04.6"
+        }
+    }
+}

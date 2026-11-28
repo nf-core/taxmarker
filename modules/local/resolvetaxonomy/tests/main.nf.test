@@ -1,0 +1,629 @@
+nextflow_process {
+
+    name "Test Process RESOLVETAXONOMY"
+    script "../main.nf"
+    process "RESOLVETAXONOMY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/resolvetaxonomy"
+
+    test("taxmarker - embedded taxonomy, no external file") {
+
+        when {
+            process {
+                """
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [
+                    [ id:'resolvetaxonomy_test' ],
+                    [],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/resolvetaxonomy_test_embedded.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+            def sequences = path(process.out.sequences[0][1]).text
+
+            assertAll(
+                // Taxonomy derived from each record's embedded header text.
+                { assert taxonomy.contains('SeqA\tBacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA') },
+                { assert taxonomy.contains('SeqB\tBacteria;PhylumA;ClassB;OrderB;FamilyB;GenusB;SpeciesB') },
+                // Headers stripped down to a bare id -- no leftover taxonomy text that
+                // could later be mistaken for part of the sequence name downstream.
+                { assert sequences.contains('>SeqA\n') },
+                { assert sequences.contains('>SeqB\n') },
+                { assert !sequences.contains('Bacteria') },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("taxmarker - external taxonomy file wins, warns on ignored embedded text") {
+
+        when {
+            process {
+                """
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [
+                    [ id:'resolvetaxonomy_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/resolvetaxonomy_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/resolvetaxonomy_test_embedded.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+            def sequences = path(process.out.sequences[0][1]).text
+
+            assertAll(
+                // The explicit file's (distinguishable) content wins...
+                { assert taxonomy.contains('SeqA\tArchaea;OverridePhylum;OverrideClass') },
+                { assert taxonomy.contains('SeqB\tArchaea;OverridePhylum;OverrideClass2') },
+                // ...not the Bacteria;... lineage embedded in the FASTA headers.
+                { assert !taxonomy.contains('Bacteria') },
+                { assert sequences.contains('>SeqA\n') },
+                { assert !sequences.contains('Bacteria') },
+                // Ignored, not silently used -- a warning is reported.
+                { assert path(process.out.warnings[0][1]).text.toLowerCase().contains('ignoring') },
+            )
+        }
+
+    }
+
+    test("taxmarker - external taxonomy file, no embedded text, no warning") {
+
+        when {
+            process {
+                """
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [
+                    [ id:'resolvetaxonomy_test' ],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.tax', checkIfExists: true),
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+
+            assertAll(
+                { assert taxonomy.contains('SeqGood1\tBacteria;PhylumA;ClassA') },
+                { assert path(process.out.warnings[0][1]).text.trim().isEmpty() },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy drops trailing bracket metadata") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_brackets', '.fasta')
+                fasta.text = '>SeqA Bacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA [locus_tag=abc] [location=1..100]\\nACGT\\n'
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+
+            assertAll(
+                { assert taxonomy.contains('SeqA\tBacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA\n') },
+                { assert !taxonomy.contains('locus_tag') },
+                { assert !taxonomy.contains('[') },
+            )
+        }
+
+    }
+
+    test("taxmarker - gzipped sequences input is read and resolved as plain text") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_gz', '.fasta')
+                fasta.text = '>SeqA Bacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA\\nACGT\\n'
+                def gz = new File(fasta.toString() + '.gz')
+                new java.util.zip.GZIPOutputStream(gz.newOutputStream()).withCloseable { it << fasta.bytes }
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(gz.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy_path = path(process.out.taxonomy[0][1])
+            def sequences_path = path(process.out.sequences[0][1])
+
+            assertAll(
+                { assert taxonomy_path.text.contains('SeqA\tBacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA\n') },
+                // Output is plain, uncompressed FASTA -- not still gzipped.
+                { assert sequences_path.toString().endsWith('.fasta') },
+                { assert sequences_path.text.contains('>SeqA\n') },
+            )
+        }
+
+    }
+
+    test("taxmarker - gzipped taxonomy file is read") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_gz', '.tax')
+                tax.text = 'SeqA\\tBacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA\\n'
+                def gz = new File(tax.toString() + '.gz')
+                new java.util.zip.GZIPOutputStream(gz.newOutputStream()).withCloseable { it << tax.bytes }
+                def fasta = File.createTempFile('resolvetaxonomy_gz', '.fasta')
+                fasta.text = '>SeqA\\nACGT\\n'
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(gz.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+
+            assertAll(
+                // The headers carry no taxonomy, so this lineage can only come from the gzipped file.
+                { assert taxonomy.contains('SeqA\tBacteria;PhylumA;ClassA;OrderA;FamilyA;GenusA;SpeciesA\n') },
+                { assert path(process.out.warnings[0][1]).text.trim().isEmpty() },
+            )
+        }
+
+    }
+
+    test("taxmarker - trailing empty and placeholder ranks are dropped, interior ones kept") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_partial', '.tax')
+                tax.text = [
+                    'Full\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full',
+                    'Placeholder\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__',
+                    'Genus\\td__A;p__B;c__C;o__O;f__F;g__;s__',
+                    'Empty\\tBacteria;PhylumA;ClassA;;',
+                    'Spaces\\tBacteria;PhylumA; ;  ',
+                    'Interior\\td__A;p__B;c__;o__O;f__F;g__;s__',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_partial', '.fasta')
+                fasta.text = ['Full', 'Placeholder', 'Genus', 'Empty', 'Spaces', 'Interior'].collect { ">\${it}\\nACGT\\n" }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('Full\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full') },
+                { assert lines.contains('Placeholder\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('Genus\td__A;p__B;c__C;o__O;f__F') },
+                { assert lines.contains('Empty\tBacteria;PhylumA;ClassA') },
+                { assert lines.contains('Spaces\tBacteria;PhylumA') },
+                { assert lines.contains('Interior\td__A;p__B;c__;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy drops trailing empty and placeholder ranks") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_embedded_partial', '.fasta')
+                fasta.text = [
+                    '>Full d__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full [locus_tag=abc]',
+                    '>Placeholder d__A;p__B;c__C;o__O;f__F;g__Gx;s__',
+                    '>Genus d__A;p__B;c__C;o__O;f__F;g__;s__',
+                    '>Interior d__A;p__B;c__;o__O;f__F;g__;s__',
+                ].collect { it + '\\nACGT\\n' }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('Full\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx full') },
+                { assert lines.contains('Placeholder\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('Genus\td__A;p__B;c__C;o__O;f__F') },
+                { assert lines.contains('Interior\td__A;p__B;c__;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - trailing named placeholder ranks are dropped, interior ones and similar real names kept") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_unresolved', '.tax')
+                tax.text = [
+                    'GenusAndSpecies\\tk__V;p__A;c__C;o__O;f__Orchid;g__Orchid_gen_Incertae_sedis;s__Orchid_sp',
+                    'SpOnly\\tk__V;p__A;c__C;o__O;f__F;g__Hoya;s__Hoya_sp',
+                    'SpDot\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_sp.',
+                    'Unidentified\\tk__V;p__A;c__C;o__O;f__F;g__unidentified;s__unidentified',
+                    'FamilyToSpecies\\tk__V;p__A;c__C;o__O;f__O_fam_Incertae_sedis;g__O_gen_Incertae_sedis;s__O_sp',
+                    'AllPlaceholders\\tk__V;p__V_phy_Incertae_sedis;c__V_cls_Incertae_sedis;o__V_ord_Incertae_sedis;f__V_fam_Incertae_sedis;g__V_gen_Incertae_sedis;s__V_sp',
+                    'NoPrefix\\tBacteria;PhylumA;Genus_sp',
+                    'InteriorIncertae\\tk__V;p__A;c__C;o__Eud;f__Eud_fam_Incertae_sedis;g__Gx;s__Gx_one',
+                    'GtdbPlaceholder\\td__Bacteria;p__P;c__C;o__O;f__F;g__Escherichia;s__Escherichia sp000001',
+                    'SpSpace\\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx;s__Gx sp',
+                    'SpSpaceDot\\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx;s__Gx sp.',
+                    'TwoLetterPrefix\\tsk__V;ph__A;cl__C;or__O;fa__F;ge__unidentified',
+                    'SimilarRealNames\\tk__V;p__A;c__C;o__O;f__Spiraceae;g__Spiraea;s__Spiraea_spinosa',
+                    'SpNov\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_sp_nov',
+                    'SpNumbered\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_sp1',
+                    'Spp\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_spp',
+                    'SppDot\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_spp.',
+                    'SppSpace\\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx;s__Gx spp',
+                    'SppSpaceDot\\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx;s__Gx spp.',
+                    'SppNumbered\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_spp1',
+                    'SppInName\\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gxspp',
+                ].join('\\n') + '\\n'
+                def names = ['GenusAndSpecies', 'SpOnly', 'SpDot', 'Unidentified', 'FamilyToSpecies', 'AllPlaceholders', 'NoPrefix', 'InteriorIncertae', 'GtdbPlaceholder', 'SpSpace', 'SpSpaceDot', 'TwoLetterPrefix', 'SimilarRealNames', 'SpNov', 'SpNumbered', 'Spp', 'SppDot', 'SppSpace', 'SppSpaceDot', 'SppNumbered', 'SppInName']
+                def fasta = File.createTempFile('resolvetaxonomy_unresolved', '.fasta')
+                fasta.text = names.collect { ">\\${it}\\nACGT\\n" }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                // Placeholder species and genus: the lineage ends at the last named rank.
+                { assert lines.contains('GenusAndSpecies\tk__V;p__A;c__C;o__O;f__Orchid') },
+                { assert lines.contains('SpOnly\tk__V;p__A;c__C;o__O;f__F;g__Hoya') },
+                { assert lines.contains('SpDot\tk__V;p__A;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('Unidentified\tk__V;p__A;c__C;o__O;f__F') },
+                { assert lines.contains('FamilyToSpecies\tk__V;p__A;c__C;o__O') },
+                // A lineage of nothing but placeholders keeps its first named rank.
+                { assert lines.contains('AllPlaceholders\tk__V') },
+                { assert lines.contains('NoPrefix\tBacteria;PhylumA') },
+                // A placeholder with a named rank after it is not trailing and stays.
+                { assert lines.contains('InteriorIncertae\tk__V;p__A;c__C;o__Eud;f__Eud_fam_Incertae_sedis;g__Gx;s__Gx_one') },
+                // GTDB's sp<accession> species are real species clusters and stay.
+                { assert lines.contains('GtdbPlaceholder\td__Bacteria;p__P;c__C;o__O;f__F;g__Escherichia;s__Escherichia sp000001') },
+                // NCBI style placeholders, with a space, are trimmed; so is a longer rank prefix.
+                { assert lines.contains('SpSpace\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('SpSpaceDot\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('TwoLetterPrefix\tsk__V;ph__A;cl__C;or__O;fa__F') },
+                // Names the default does not match stay: sp must end the name, and a number or nov after it is not a placeholder.
+                { assert lines.contains('SimilarRealNames\tk__V;p__A;c__C;o__O;f__Spiraceae;g__Spiraea;s__Spiraea_spinosa') },
+                { assert lines.contains('SpNov\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_sp_nov') },
+                { assert lines.contains('SpNumbered\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_sp1') },
+                // spp, as in BOLD and NCBI-derived names, is a placeholder too, with or without a dot and after a space or underscore.
+                { assert lines.contains('Spp\tk__V;p__A;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('SppDot\tk__V;p__A;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('SppSpace\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('SppSpaceDot\td__Bacteria;p__P;c__C;o__O;f__F;g__Gx') },
+                // As for sp: a number after it, or no separator before it, is not a placeholder.
+                { assert lines.contains('SppNumbered\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gx_spp1') },
+                { assert lines.contains('SppInName\tk__V;p__A;c__C;o__O;f__F;g__Gx;s__Gxspp') },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy drops trailing named placeholder ranks") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_embedded_unresolved', '.fasta')
+                fasta.text = [
+                    '>GenusAndSpecies k__V;p__A;c__C;o__O;f__Orchid;g__Orchid_gen_Incertae_sedis;s__Orchid_sp [locus_tag=abc]',
+                    '>SpOnly k__V;p__A;c__C;o__O;f__F;g__Hoya;s__Hoya_sp',
+                    '>Interior k__V;p__A;c__C;o__Eud;f__Eud_fam_Incertae_sedis;g__Gx;s__Gx_one',
+                ].collect { it + '\\nACGT\\n' }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('GenusAndSpecies\tk__V;p__A;c__C;o__O;f__Orchid') },
+                { assert lines.contains('SpOnly\tk__V;p__A;c__C;o__O;f__F;g__Hoya') },
+                { assert lines.contains('Interior\tk__V;p__A;c__C;o__Eud;f__Eud_fam_Incertae_sedis;g__Gx;s__Gx_one') },
+            )
+        }
+
+    }
+
+    test("taxmarker - a custom placeholder pattern replaces the default one") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_pattern', '.tax')
+                tax.text = [
+                    'Uncultured\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Uncultured_bacterium',
+                    'WithSpace\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx environmental sample',
+                    'SpKept\\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx_sp',
+                    'IncertaeKept\\td__A;p__B;c__C;o__O;f__F_Incertae_sedis',
+                    'BlankStillTrimmed\\td__A;p__B;c__C;o__O;f__F;g__;s__',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_pattern', '.fasta')
+                fasta.text = ['Uncultured', 'WithSpace', 'SpKept', 'IncertaeKept', 'BlankStillTrimmed'].collect { ">\\${it}\\nACGT\\n" }.join()
+                input[1] = '(?i)^uncultured|environmental sample'
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                // The custom pattern trims what it matches ...
+                { assert lines.contains('Uncultured\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                { assert lines.contains('WithSpace\td__A;p__B;c__C;o__O;f__F;g__Gx') },
+                // ... and the UNITE default no longer applies.
+                { assert lines.contains('SpKept\td__A;p__B;c__C;o__O;f__F;g__Gx;s__Gx_sp') },
+                { assert lines.contains('IncertaeKept\td__A;p__B;c__C;o__O;f__F_Incertae_sedis') },
+                // Empty ranks are trimmed whatever the pattern.
+                { assert lines.contains('BlankStillTrimmed\td__A;p__B;c__C;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - a lineage is never trimmed below its first rank") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_root', '.tax')
+                tax.text = [
+                    'RootPlaceholder\\tk__V_sp',
+                    'AllUnidentified\\tunidentified;unidentified',
+                    'MatchAll\\tk__V;p__A_sp',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_root', '.fasta')
+                fasta.text = ['RootPlaceholder', 'AllUnidentified', 'MatchAll'].collect { ">\\${it}\\nACGT\\n" }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+            def warnings = path(process.out.warnings[0][1]).text
+
+            assertAll(
+                // The sequences were annotated, so they stay with their first rank, not dropped as unannotated.
+                { assert lines.contains('RootPlaceholder\tk__V_sp') },
+                { assert lines.contains('AllUnidentified\tunidentified') },
+                { assert lines.contains('MatchAll\tk__V') },
+                { assert !warnings.contains('without any taxonomic annotation') },
+            )
+        }
+
+    }
+
+    test("taxmarker - an invalid placeholder pattern fails and names the parameter") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_badpattern', '.tax')
+                tax.text = 'A\\td__A;p__B\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_badpattern', '.fasta')
+                fasta.text = '>A\\nACGT\\n'
+                input[1] = 'x(?i)abc'
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.failed
+            assert process.errorReport.contains('--unresolved_rank_pattern')
+        }
+
+    }
+
+    test("taxmarker - an empty placeholder pattern trims only empty ranks") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_nopattern', '.tax')
+                tax.text = [
+                    'Placeholders\\td__A;p__B;c__C;o__O;f__F;g__Gx_gen_Incertae_sedis;s__Gx_sp',
+                    'Empty\\td__A;p__B;c__C;o__O;f__F;g__;s__',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_nopattern', '.fasta')
+                fasta.text = ['Placeholders', 'Empty'].collect { ">\\${it}\\nACGT\\n" }.join()
+                input[1] = ''
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def lines = path(process.out.taxonomy[0][1]).readLines()
+
+            assertAll(
+                { assert lines.contains('Placeholders\td__A;p__B;c__C;o__O;f__F;g__Gx_gen_Incertae_sedis;s__Gx_sp') },
+                { assert lines.contains('Empty\td__A;p__B;c__C;o__O;f__F') },
+            )
+        }
+
+    }
+
+    test("taxmarker - sequences without any annotation are dropped from taxonomy and sequences, with a warning") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('resolvetaxonomy_unannotated', '.tax')
+                tax.text = [
+                    'Named\\td__A;p__B;c__C',
+                    'Blank\\t;;;;;;',
+                    'Placeholders\\td__;p__;c__;o__;f__;g__;s__',
+                    'NoLineage\\t',
+                ].join('\\n') + '\\n'
+                def fasta = File.createTempFile('resolvetaxonomy_unannotated', '.fasta')
+                fasta.text = ['Named', 'Blank', 'Placeholders', 'NoLineage'].collect { ">\${it}\\nACGT\\n" }.join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], file(tax.toString()), file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).readLines()
+            def ids = path(process.out.sequences[0][1]).readLines().findAll { it.startsWith('>') }
+            def warnings = path(process.out.warnings[0][1]).text
+
+            assertAll(
+                { assert taxonomy == ['Named\td__A;p__B;c__C'] },
+                { assert ids == ['>Named'] },
+                { assert warnings.contains('Blank') && warnings.contains('Placeholders') && warnings.contains('NoLineage') },
+            )
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy - sequences without any annotation are dropped") {
+
+        when {
+            process {
+                """
+                def fasta = File.createTempFile('resolvetaxonomy_unannotated_embedded', '.fasta')
+                fasta.text = [
+                    '>Named d__A;p__B;c__C [locus_tag=abc]\\nACGT\\n',
+                    '>Placeholders d__;p__;c__;o__;f__;g__;s__ [locus_tag=def]\\nACGT\\n',
+                    '>Blank ;;;;;; [locus_tag=ghi]\\nACGT\\n',
+                    '>Fine d__A;p__B;c__D\\nACGT\\n',
+                ].join()
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [ [ id:'resolvetaxonomy_test' ], [], file(fasta.toString()) ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).readLines()
+            def ids = path(process.out.sequences[0][1]).readLines().findAll { it.startsWith('>') }
+            def warnings = path(process.out.warnings[0][1]).text
+
+            assertAll(
+                { assert taxonomy == ['Named\td__A;p__B;c__C', 'Fine\td__A;p__B;c__D'] },
+                { assert ids == ['>Named', '>Fine'] },
+                { assert warnings.contains('Placeholders') && warnings.contains('Blank') },
+            )
+        }
+
+    }
+
+    test("taxmarker - neither taxonomy file nor embedded text fails clearly") {
+
+        when {
+            process {
+                """
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [
+                    [ id:'resolvetaxonomy_test' ],
+                    [],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gapfilter_test.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert !process.success
+            assert (process.stdout + process.stderr).join('\n').contains('--taxonomy')
+        }
+
+    }
+
+    test("taxmarker - embedded taxonomy - stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                input[1] = params.unresolved_rank_pattern
+                input[0] = [
+                    [ id:'resolvetaxonomy_test' ],
+                    [],
+                    file(params.pipelines_testdata_base_path + 'taxmarker/testdata/resolvetaxonomy_test_embedded.fasta', checkIfExists: true),
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}

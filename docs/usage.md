@@ -6,58 +6,165 @@
 
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+nf-core/taxmarker identifies taxonomically mislabelled sequences by evolutionary placement: it builds a phylogeny from the declared taxonomy, places each sequence back into it after removing it (leave-one-out), and flags sequences whose phylogenetic signal doesn't agree with their declared taxonomy.
+It takes two logical inputs: a set of sequences (`--sequences`) and their proposed taxonomy (`--taxonomy`, or embedded in the sequences themselves -- see below).
 
-## Samplesheet input
+## Sequences and taxonomy input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+### Sequences (`--sequences`)
+
+Path to a sequences file, aligned or not: phylip (`.phy`, `.phylip`), Clustal (`.aln`), or FASTA (`.fa`, `.fasta`, `.fna`, `.faa`, `.afa`, `.mfa`, `.alnfaa`, `.alnfna`).
+The file can be gzipped, e.g. `sequences.fna.gz`.
+Aligned vs. unaligned is detected automatically -- no separate mode-switch parameter needed.
+Unaligned content is aligned before continuing through the rest of the pipeline as if it had arrived pre-aligned.
+With `--hmm` (path to an HMM profile database) it is aligned via [hmmalign](http://hmmer.org) against that profile, and `--hmm_name` picks one profile if the database holds more than one.
+Without `--hmm` it is aligned from scratch with [MAFFT](https://mafft.cbrc.jp/alignment/software/), in a single job.
+See [Aligning the sequences](usage/aligning_sequences.md) for which to choose and what each costs.
 
 ```bash
---input '[path to samplesheet file]'
+--sequences sequences.fasta
 ```
 
-### Multiple runs of the same sample
+### Taxonomy (`--taxonomy`)
 
-The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
+Optional -- see [Taxonomy embedded in sequence headers](#taxonomy-embedded-in-sequence-headers) below if omitted.
+A tab-separated file with two columns and no header: sequence name, and a semicolon-separated taxonomy string.
+It must end in `.tax` or `.tsv`, and can be gzipped, e.g. `.tax.gz`.
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+```tsv title="taxonomy.tsv"
+UnpCCeti        Bacteria;Fusobacteria;Fusobacteriia;Fusobacteriales;Fusobacteriaceae;Cetobacterium;Cetobacterium ceti
+UnpSomer        Bacteria;Fusobacteria;Fusobacteriia;Fusobacteriales;Fusobacteriaceae;Cetobacterium;Cetobacterium somerae
+UpbRectu        Bacteria;Firmicutes;Clostridia;Clostridiales;Clostridiaceae;Clostridium;Clostridium rectum
 ```
 
-### Full samplesheet
+Sequence names in the taxonomy file must match those in `--sequences` (after the sanitisation described below).
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
+Lineages may stop at any rank.
+Trailing empty ranks and bare placeholders such as `g__` or `s__` are removed, so a sequence annotated only to genus ends at the genus.
+Named placeholders are removed from the end too, as UNITE writes them (`g__Orchidaceae_gen_Incertae_sedis`, `s__Orchidaceae_sp`): a sequence whose genus and species are such placeholders ends at its last named rank, for example the family.
+Without this, sequences that are only unresolved would be grouped and tested as one genus or species.
+`--unresolved_rank_pattern` decides what counts as a placeholder.
+It is a Python regular expression, searched in the rank name without its rank prefix (one to three letters and `__`, such as `g__`).
+The default is `(?i)[ _]spp?[.]?$|Incertae[ _]sedis|^unidentified`: a rank ending in `sp`, `sp.`, `spp` or `spp.` after a space or underscore (`spp` is common in BOLD and NCBI-derived names), a rank containing `Incertae sedis` or `Incertae_sedis`, and a rank starting with `unidentified`, in any case.
+GTDB's `Genus sp000001` names a real species cluster and stays.
+Names such as `Genus_sp1`, `Genus_spp1` or `Genus_sp_nov` are not matched by the default, because `sp` or `spp` must end the name.
+A bare `sp. nov.` can stand for several different undescribed species, so add it to the pattern if your database uses it, for example `(?i)[ _]spp?[.]?([ _]nov[.]?)?$`.
+The pattern is case-sensitive unless it starts with `(?i)`, which must come first, and it must not contain a single quote.
+Set it for databases that use other words, for example `--unresolved_rank_pattern '(?i)^uncultured|^unclassified'`.
+To trim only empty ranks, give an empty string with an equals sign, `--unresolved_rank_pattern=''`; without the equals sign Nextflow drops the empty argument.
 
-A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
+A lineage is never trimmed below its first rank: a sequence whose only rank is a placeholder keeps it.
+Placeholders in the middle of a lineage, followed by a named rank, are kept like empty ranks there, so sequences with an unresolved genus but a named species still share that placeholder genus.
+Sequences that end at the same rank after trimming share one taxon, so unresolved species of one genus count as one taxon, for example when clustering picks a representative per taxon.
+The mislabel tables show the lineage as trimmed.
+Sequences without any annotation, such as a lineage of only `;;;;;;`, are dropped from both the taxonomy and the sequences, with a warning, since they cannot be checked.
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+### Taxonomy embedded in sequence headers
+
+If `--taxonomy` is omitted, taxonomy is instead derived from each `--sequences` FASTA record's own header, following [GTDB](https://gtdb.ecogenomic.org/)'s own single-file convention: the taxonomy string directly after the sequence id, space-separated.
+
+```
+>UnpCCeti Bacteria;Fusobacteria;Fusobacteriia;Fusobacteriales;Fusobacteriaceae;Cetobacterium;Cetobacterium ceti
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+This is only possible for FASTA input -- phylip and Clustal records have no room for embedded text, so those formats always require a separate `--taxonomy` file.
 
-An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+If both `--taxonomy` and embedded header text are present, the file always wins: a warning is logged (rather than the header text being silently ignored) so a mismatch between the two doesn't go unnoticed.
+
+Whichever source is used, sequence headers are stripped down to a bare id before continuing through the rest of the pipeline -- leftover header text risks being mistaken for part of the sequence name by downstream tools.
+
+### Sequence name sanitisation
+
+Sequence name characters other than letters, digits, `_`, `.`, `-`, `|` and `/` are rewritten to underscores in both `--sequences` and `--taxonomy`, since RAxML-NG's own tree-writer would otherwise silently mangle them in leaf names, desyncing the alignment/taxonomy from the tree it builds.
+
+## Weighted clustering
+
+Before alignment, raxtax and placement, the pipeline reduces the input to one representative sequence per (cluster, taxon) pair, collapsing near-duplicate sequences of the same taxon.
+See [Weighted clustering](usage/weighted_clustering.md) for the `--sequence_weights`/`--min_weight`/`--cluster_identity` parameters, exactly how VSEARCH decides what counts as a duplicate, and `--upstream GTDB` for computing `--sequence_weights` automatically from GTDB genome metadata.
+See [Choosing `--cluster_identity`](usage/choosing_cluster_identity.md) for what a lower value saves and what it costs in flags.
+
+## Partial sequences
+
+Unaligned input is aligned to an HMM profile, and sequences covering too little of it are dropped, except the best one of any taxon that would otherwise be lost.
+See [Profile coverage and fragment rescue](usage/profile_coverage.md) for the `--min_profile_cover`/`--min_profile_cover_rescue` parameters and how well fragments place.
+
+## Reference tree model
+
+The reference tree is built with RAxML-NG under a topology constraint from the taxonomy.
+By default RAxML-NG first selects a substitution model, which can take a quarter or more of the tree building time on large alignments.
+Pass a model with `--raxmlng_model`, for example `--raxmlng_model GTR+FO+I+R10`, to skip the selection.
+Any model string that RAxML-NG accepts for `--model` works.
+`--raxmlng_model` applies to the tree the placement test scores against.
+The tree of `--run_reference` takes `--raxmlng_reference_model` and, when that is not set, the same model as `--raxmlng_model`.
+With `--run_divided_tree_search` the selection runs once, on the top part of the divided tree, and the other parts use the model it picks.
+
+On large alignments the search itself dominates the run time.
+By default the pipeline uses the RAxML-NG fast search (`--raxmlng_fast`): one parsimony starting tree and a simplified topology search that stops early.
+The constraint still applies, and the tree is somewhat less optimal than the thorough search gives.
+On 5,226 archaeal 16S sequences from GTDB with the same model, the fast search took 3,533 s against 34,657 s and its log-likelihood was 0.03% lower.
+The sets of flagged sequences overlapped as much as the sets of two fast searches with different seeds do (Jaccard index 0.86 in both cases).
+The fast search also builds the parts of `--run_divided_tree_search` and the tree of `--run_reference`.
+Use `--raxmlng_fast false` for the thorough search.
+
+For inputs of some thousands of sequences or more, set a model with `--raxmlng_model`: on archaeal 16S sequences the model selection took a quarter to a half of the run time.
+No model suits every data set, so the table lists what has been tested.
+
+| Data          | Model          | Note                                                                                                                                                                                                                         |
+| ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GTDB 16S rRNA | `GTR+FO+I+R10` | Recommended for GTDB. Model selection chose it in all five archaeal runs tested, and `GTR+FO+R10` or `GTR+FO+I+R10` on bacterial subsets. `GTR+G4` was faster but lost about half of the strong flags on a bacterial subset. |
+
+For inputs of some thousands of sequences or more, `--run_divided_tree_search` searches parts of the taxonomy in parallel and grafts them together.
+See [Divided tree search](usage/divided_tree_search.md) for when it pays off and why it needs a fixed model.
+
+`--raxmlng_seed` sets the seed of the tree search (default 42).
+A different seed can give a somewhat different tree and so somewhat different flags.
+The published files do not carry the seed in their names, so run another seed with a new `--outdir`.
+
+`--raxmlng_blopt` sets the branch length optimisation method (`nr_fast`, `nr_safe` or `nr_oldstyle`, RAxML-NG's `--blopt`).
+Unset uses RAxML-NG's default.
+If RAxML-NG stops with a branch length error (BRLEN out-of-bounds), for example on alignments with near-empty sequences, use `nr_safe`.
+
+## Reference export
+
+The final products of a run are all in `export/`: the files below, the reference of `--run_reference` (next section) and a copy of the mislabels table (`*.mislabels.tsv`, see [Output](output.md#mislabels)).
+The other output directories hold intermediate results, which most users can skip.
+
+`--export_n_per_species` takes a comma-separated list of numbers, e.g. `1,5,20`, and writes four files to `export/` for each.
+The word `all` can be used as a number, e.g. `1,5,all`, to export every sequence that passed (the files are then named `*.all.*` instead of `*.n<N>.*`).
+The files are:
+
+- `*.n<N>.addSpecies.fna.gz`: `>ID Genus species`, for DADA2's `addSpecies()`.
+- `*.n<N>.assignTaxonomy.fna.gz`: `>rank1;rank2;...;species;`, rank prefixes such as `d__` removed, for DADA2's `assignTaxonomy()`.
+- `*.n<N>.general.fna.gz`: the original headers, unchanged.
+- `*.n<N>.names.txt`: the names of the exported sequences, one per line.
+
+Each file holds at most N sequences per species (all of them for `all`), ranked by weight (`--sequence_weights` or `--upstream GTDB`) times length.
+Only sequences that passed every check that ran are exported.
+A cluster member inherits its representative's verdict, so identical copies from different genomes can fill a species' N slots.
+Sequences dropped by a filter before the last check, such as short fragments, are left out.
+
+## Reference for phylogenetic placement
+
+`--run_reference` builds a reference phylogeny for placing unknown sequences, from one sequence per species, and writes it to `export/`, next to the other final products:
+
+- `*.raxml.bestTree`: the phylogeny, constrained by the taxonomy.
+- `*.raxml.bestModel`: the RAxML-NG model, selected for this alignment unless a model is given (see `--raxmlng_reference_model`).
+- `*.reference.fasta`: the alignment the tree was built from.
+- `*.reference.tax`: the declared taxonomy of the same sequences.
+- `*.guide.nwk`: the taxonomy-only guide tree used as the constraint.
+
+The sequences are the same as in the one-per-species reference export (`--export_n_per_species`, number 1), which `--run_reference` writes to `export/` even when that option is not given.
+`export/*.n1.names.txt` lists them.
+The names in the reference files and in `*.names.txt` are the sequence names the pipeline works with, in which characters other than letters, digits, `_`, `.`, `-`, `|` and `/` have been replaced by `_`; the headers in `export/*.fna.gz` keep the original ones.
+A species with no sequence that passed every check has none in the reference.
+The tree is a second RAxML-NG search, run with the settings of the first one (`--raxmlng_fast`, `--raxmlng_seed`, `--raxmlng_blopt`) and, unless `--raxmlng_reference_model` is set, its model.
 
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run nf-core/taxmarker --input ./samplesheet.csv --outdir ./results  -profile docker
+nextflow run nf-core/taxmarker --sequences ./sequences.fasta --taxonomy ./taxonomy.tsv --outdir ./results -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -87,7 +194,8 @@ nextflow run nf-core/taxmarker -profile docker -params-file params.yaml
 with:
 
 ```yaml title="params.yaml"
-input: './samplesheet.csv'
+sequences: './sequences.fasta'
+taxonomy: './taxonomy.tsv'
 outdir: './results/'
 <...>
 ```
@@ -152,7 +260,7 @@ If `-profile` is not specified, the pipeline will run locally and expect all sof
 - `apptainer`
   - A generic configuration profile to be used with [Apptainer](https://apptainer.org/)
 - `wave`
-  - A generic configuration profile to enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow `24.03.0-edge` or later).
+  - A generic configuration profile to enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow ` 24.03.0-edge` or later).
 - `conda`
   - A generic configuration profile to be used with [Conda](https://conda.io/docs/). Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker, Singularity, Podman, Shifter, Charliecloud, or Apptainer.
 

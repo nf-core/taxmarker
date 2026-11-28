@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "checknameconsistency"
+description: |
+  Verify that the taxonomy and alignment inputs name the same set of
+  sequences, and rewrite characters that are difficult for some downstream
+  tools (starting with parentheses) to underscores in both files' names
+  before anything else runs. Fails with a message listing the offending
+  names if the two files disagree on the set of names, or if rewriting
+  causes two different names to collide.
+keywords:
+  - taxonomy
+  - alignment
+  - validation
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: Tab-separated taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - alignment:
+        type: file
+        description: Aligned, labeled sequences in FASTA, Clustal or PHYLIP format (detected by content, not extension).
+        pattern: "*"
+output:
+  checked:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - taxonomy:
+          type: file
+          description: The taxonomy file, with problematic characters rewritten in the seq_name column.
+          pattern: "*.checked.tax"
+      - alignment:
+          type: file
+          description: The alignment file, in its original format, with problematic characters rewritten in sequence IDs.
+          pattern: "*.checked.*"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+      - biopython:
+          type: string
+          description: The version of Biopython
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+      - biopython:
+          type: string
+          description: The version of Biopython
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "resolvetaxonomy"
+description: |
+  Resolve the taxonomy for a set of sequences: use an explicit --taxonomy file if one
+  is given (warning, not silently ignoring, if the sequences also carry embedded
+  taxonomy text); otherwise derive taxonomy from each sequence's own FASTA header,
+  GTDB-style (`>id taxonomy;string`), dropping a trailing bracketed metadata block if
+  present. Headers are always stripped down to a bare id in the output sequences,
+  regardless of which taxonomy source was used. Accepts gzipped --sequences input.
+keywords:
+  - taxonomy
+  - fasta
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: |
+          Optional tab-separated taxonomy labels (seq_name<TAB>rank1;rank2;...),
+          plain or gzipped. Pass `[]` if not available -- taxonomy is then
+          derived from sequences' own FASTA headers instead.
+        pattern: "*.{tax,tsv,tax.gz,tsv.gz}"
+    - sequences:
+        type: file
+        description: Sequences in FASTA, Clustal or PHYLIP format, aligned or not, plain or gzipped.
+        pattern: "*.{fa,fasta,fna,faa,afa,mfa,alnfna,alnfaa,aln,phy,phylip,fa.gz,fasta.gz,fna.gz,faa.gz,afa.gz,mfa.gz,alnfna.gz,alnfaa.gz,aln.gz,phy.gz,phylip.gz}"
+  - unresolved_pattern:
+      type: string
+      description: |
+        Python regular expression for placeholder ranks (e.g. UNITE's `s__Genus_sp`) that are
+        removed from the end of a lineage like empty ranks, tested against the rank name without
+        its rank prefix (one to three letters and `__`). A lineage keeps its first rank. An empty
+        string trims only empty ranks. Must not contain a single quote.
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - resolved_taxonomy:
+          type: file
+          description: The resolved taxonomy, either passed through from the input file or derived from sequence headers.
+          pattern: "*.resolved.tax"
+  sequences:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - resolved_sequences:
+          type: file
+          description: The input sequences (same format as the input -- FASTA, Clustal or PHYLIP), headers stripped down to a bare id.
+          pattern: "*.resolved.*"
+  warnings:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - warnings_txt:
+          type: file
+          description: One line per warning (e.g. embedded taxonomy text ignored in favour of an explicit --taxonomy file); empty if none.
+          pattern: "*.warnings.txt"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

@@ -1,0 +1,288 @@
+nextflow_workflow {
+
+    name "Test Subworkflow ENSURE_ALIGNED"
+    script "../main.nf"
+    workflow "ENSURE_ALIGNED"
+
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "subworkflows/ensure_aligned"
+    tag "taxmarker"
+
+    test("taxmarker - already aligned, passes through unchanged") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_loo_test.fasta', checkIfExists: true))
+                input[1] = null
+                input[2] = null
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def aligned = path(workflow.out.alignment_native[0]).text
+
+            assertAll(
+                // Content preserved exactly -- no HMM step should have run at all.
+                { assert aligned.contains('>SeqA') },
+                { assert aligned.contains('ACGTACGTAC') },
+                // Nothing went through the hmmalign branch.
+                { assert workflow.out.alignment_from_hmm.isEmpty() },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned, realigned via hmmalign") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkaligned_test_unaligned.fasta', checkIfExists: true))
+                input[1] = params.pipelines_testdata_base_path + 'taxmarker/testdata/barrnap_arc.hmm'
+                input[2] = '16S_rRNA'
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def content = path(workflow.out.alignment_from_hmm[0]).text
+            def seqLengths = content.split('>').findAll { it.trim() }.collect { entry ->
+                entry.readLines().drop(1).join('').trim().length()
+            }
+
+            assertAll(
+                { assert content.contains('>SeqA') },
+                { assert content.contains('>SeqB') },
+                { assert content.contains('>SeqC') },
+                // All three input sequences (originally 16/10/20bp) now share one
+                // column count -- the whole point of running them through hmmalign.
+                { assert seqLengths.toSet().size() == 1 },
+                // ...and that column count is exactly the HMM's own match-state
+                // count (Barrnap's 16S_rRNA profile: 1477), confirmed via
+                // `hmmalign --trim | esl-alimask --rf-is-mask` against this same
+                // profile. Not the wider width hmmalign's raw Stockholm output
+                // would have: HMMER_ESLALIMASK masks out insert-state columns
+                // (each real only for one or two sequences, padding everyone else
+                // with extra gaps there) *before* this, so a later non-gap-
+                // proportion filter measures true profile coverage rather than
+                // being diluted by insert-column noise.
+                { assert seqLengths[0] == 1477 },
+                { assert path(workflow.out.alignment_from_hmm[0]).md5 == '3cd303f21b542cafeb9345a99e28bd8d' },
+                // Nothing went through the native branch.
+                { assert workflow.out.alignment_native.isEmpty() },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned, one sequence per hmmalign job gives the same alignment") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkaligned_test_unaligned.fasta', checkIfExists: true))
+                input[1] = params.pipelines_testdata_base_path + 'taxmarker/testdata/barrnap_arc.hmm'
+                input[2] = '16S_rRNA'
+                input[3] = 1
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def aligned = path(workflow.out.alignment_from_hmm[0])
+            def ids = aligned.readLines().findAll { it.startsWith('>') }
+
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER_HMMALIGN') }.size() == 3 },
+                { assert ids == ['>SeqA', '>SeqB', '>SeqC'] },
+                // Chunking must not change a character: same md5 as the unchunked run.
+                { assert aligned.md5 == '3cd303f21b542cafeb9345a99e28bd8d' },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned, uneven last chunk gives the same alignment") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkaligned_test_unaligned.fasta', checkIfExists: true))
+                input[1] = params.pipelines_testdata_base_path + 'taxmarker/testdata/barrnap_arc.hmm'
+                input[2] = '16S_rRNA'
+                input[3] = 2
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def aligned = path(workflow.out.alignment_from_hmm[0])
+
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER_HMMALIGN') }.size() == 2 },
+                { assert aligned.md5 == '3cd303f21b542cafeb9345a99e28bd8d' },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned, many chunks keep input order and one width") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gtdb_archaea_16s_unaligned.fasta', checkIfExists: true))
+                input[1] = params.pipelines_testdata_base_path + 'taxmarker/testdata/barrnap_arc.hmm'
+                input[2] = '16S_rRNA'
+                input[3] = 10
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def lines = path(workflow.out.alignment_from_hmm[0]).readLines()
+            def ids = lines.findAll { it.startsWith('>') }
+            def widths = lines.join('\n').split('>').findAll { it.trim() }.collect { it.readLines().drop(1).join('').length() }
+
+            assertAll(
+                // 121 sequences, 10 per job: 13 chunks, the last one holding a single sequence.
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER_HMMALIGN') }.size() == 13 },
+                // Chunk boundaries (10|11) and the one-sequence last chunk, in input order.
+                { assert ids.size() == 121 },
+                { assert ids[0] == '>RS_GCF_000245255.1~NZ_AHJS01000002.1' },
+                { assert ids[9] == '>RS_GCF_000245135.1~NZ_AHJM01000003.1' },
+                { assert ids[10] == '>GB_GCA_003086455.1~QEFG01000074.1' },
+                { assert ids[119] == '>DupHaloA' },
+                { assert ids[120] == '>DupSulfoA' },
+                { assert widths.toSet().size() == 1 },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned without --hmm, aligned with MAFFT") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/gtdb_archaea_16s_unaligned.fasta', checkIfExists: true))
+                input[1] = null
+                input[2] = null
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def lines = path(workflow.out.alignment_native[0]).readLines()
+            def ids = lines.findAll { it.startsWith('>') }
+            def widths = lines.join('\n').split('>').findAll { it.trim() }.collect { it.readLines().drop(1).join('').length() }
+
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('MAFFT_ALIGN') }.size() == 1 },
+                // No HMM given: nothing went through the hmmalign branch.
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER') }.isEmpty() },
+                { assert workflow.out.alignment_from_hmm.isEmpty() },
+                // Every sequence is there, in input order, under its own name.
+                { assert ids.size() == 121 },
+                { assert ids[0] == '>RS_GCF_000245255.1~NZ_AHJS01000002.1' },
+                { assert ids[10] == '>GB_GCA_003086455.1~QEFG01000074.1' },
+                { assert ids[120] == '>DupSulfoA' },
+                { assert widths.toSet().size() == 1 },
+                // Gaps were added: the input is unaligned. (Headers can contain '-', so look at sequence lines only.)
+                { assert lines.findAll { !it.startsWith('>') }.any { it.contains('-') } },
+                // Input case is kept (MAFFT lowercases by default).
+                { assert lines.findAll { !it.startsWith('>') }.every { it == it.toUpperCase() } },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned with --hmm does not run MAFFT") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkaligned_test_unaligned.fasta', checkIfExists: true))
+                input[1] = params.pipelines_testdata_base_path + 'taxmarker/testdata/barrnap_arc.hmm'
+                input[2] = '16S_rRNA'
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('MAFFT_ALIGN') }.isEmpty() },
+                { assert workflow.out.alignment_native.isEmpty() },
+                { assert path(workflow.out.alignment_from_hmm[0]).readLines().findAll { it.startsWith('>') }.size() == 3 },
+            )
+        }
+
+    }
+
+    test("taxmarker - unaligned, empty --hmm counts as no HMM and --hmm_name alone warns") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/checkaligned_test_unaligned.fasta', checkIfExists: true))
+                input[1] = ''
+                input[2] = '16S_rRNA'
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assertAll(
+                { assert workflow.trace.tasks().findAll { it.name.contains('MAFFT_ALIGN') }.size() == 1 },
+                { assert workflow.trace.tasks().findAll { it.name.contains('HMMER') }.isEmpty() },
+                { assert workflow.out.alignment_from_hmm.isEmpty() },
+                { assert path(workflow.out.alignment_native[0]).readLines().findAll { it.startsWith('>') }.size() == 3 },
+                { assert path("$metaDir/nextflow.log").text.contains('--hmm_name is ignored without --hmm') },
+            )
+        }
+
+    }
+
+    test("taxmarker - already aligned does not run MAFFT") {
+
+        when {
+            workflow {
+                """
+                input[0] = Channel.of(file(params.pipelines_testdata_base_path + 'taxmarker/testdata/sativa_loo_test.fasta', checkIfExists: true))
+                input[1] = null
+                input[2] = null
+                input[3] = 10000
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().findAll { it.name.contains('MAFFT_ALIGN') }.isEmpty()
+        }
+
+    }
+
+}

@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+name: "profilecover"
+description: |
+  Drop sequences from an hmmalign-derived alignment whose HMM profile coverage
+  (non-gap proportion, once HMMER_ESLALIMASK has masked the alignment down to
+  match-state columns only) falls below a threshold (--min-coverage) -- too
+  short/incomplete to place reliably -- reporting them separately rather than
+  silently discarding them (optionally keeping the best-covered sequence of any
+  taxon that would otherwise lose all its sequences, --rescue-floor), and returning the surviving taxonomy/alignment pair
+  unchanged in schema. Same underlying logic as GAPFILTER, applied to the
+  hmmalign branch specifically: the two branches' alignments have structurally
+  different non-gap distributions (a fixed-length HMM match-state profile vs. a
+  directly-provided alignment naturally widened by real cross-lineage indels),
+  so each gets its own threshold default.
+keywords:
+  - alignment
+  - filtering
+  - hmmer
+  - taxmarker
+tools:
+  - "sativa":
+      description: "Freely available tools for computational molecular biology."
+      homepage: "None"
+      documentation: "None"
+      tool_dev_url: "None"
+      doi: ""
+      licence: ["Biopython License Agreement"]
+      identifier: biotools:biopython
+
+input:
+  - - meta:
+        type: map
+        description: Groovy Map containing sample information. e.g. `[
+          id:'sample1' ]`
+    - taxonomy:
+        type: file
+        description: Tab-separated declared taxonomy labels (seq_name<TAB>rank1;rank2;...).
+        pattern: "*.{tax,tsv}"
+    - alignment:
+        type: file
+        description: hmmalign-derived alignment, already masked to HMM match-state columns by HMMER_ESLALIMASK (same sequences named in taxonomy).
+        pattern: "*.{fa,fasta,fna,alnfna,mfa}"
+output:
+  taxonomy:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_taxonomy:
+          type: file
+          description: Declared taxonomy for sequences at or above --min-coverage, plus any rescued by --rescue-floor.
+          pattern: "*.covfiltered.tax"
+  alignment:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - filtered_alignment:
+          type: file
+          description: Alignment subset to sequences at or above --min-coverage, plus any rescued by --rescue-floor.
+          pattern: "*.covfiltered.fasta"
+  excluded:
+    - - meta:
+          type: map
+          description: Groovy Map containing sample information. e.g. `[
+            id:'sample1' ]`
+      - excluded_tsv:
+          type: file
+          description: Sequences below --min-coverage (seq_name, profile_coverage, min_coverage_threshold, status), where status is `excluded` or `rescued`.
+          pattern: "*.cov_excluded.tsv"
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - python:
+          type: string
+          description: The version of Python
+authors:
+  - "@erikrikarddaniel"
+maintainers:
+  - "@erikrikarddaniel"

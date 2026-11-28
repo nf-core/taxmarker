@@ -1,0 +1,174 @@
+nextflow_process {
+
+    name "Test Process WEIGHTFILTER"
+    script "../main.nf"
+    process "WEIGHTFILTER"
+
+    tag "modules"
+    tag "modules_local"
+    tag "taxmarker"
+    tag "taxmarker/weightfilter"
+
+    test("no weight table -- every sequence defaults to weight 1") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqA\\td__X;p__A\\n' + 'SeqB\\td__X;p__B\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqA\\nACGT\\n>SeqB\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), [], 1.0 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def sequences = path(process.out.sequences[0][1]).text
+            def excluded  = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                // Default weight 1 clears a min_weight of 1.0 (>=, not >).
+                { assert taxonomy.contains('SeqA') },
+                { assert taxonomy.contains('SeqB') },
+                { assert sequences.contains('>SeqA') },
+                { assert sequences.contains('>SeqB') },
+                { assert excluded.readLines().size() == 1 },
+                { assert process.out.versions }
+            )
+        }
+
+    }
+
+    test("weight table -- below-threshold sequences excluded, missing entries default to 1") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqGood\\td__X;p__A\\n' + 'SeqBad\\td__X;p__B\\n' + 'SeqDefault\\td__X;p__C\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqGood\\nACGT\\n>SeqBad\\nACGT\\n>SeqDefault\\nACGT\\n'
+                def weights = File.createTempFile('test', '.weights.tsv')
+                weights.text = 'SeqGood\\t50\\n' + 'SeqBad\\t-200\\n'
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(weights.toString()), 0.0 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy  = path(process.out.taxonomy[0][1]).text
+            def sequences = path(process.out.sequences[0][1]).text
+            def excluded  = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                { assert taxonomy.contains('SeqGood') },
+                // Missing from the weight table -> defaults to 1.0, clears a 0.0 cutoff.
+                { assert taxonomy.contains('SeqDefault') },
+                { assert !taxonomy.contains('SeqBad') },
+                { assert sequences.contains('>SeqGood') },
+                { assert sequences.contains('>SeqDefault') },
+                { assert !sequences.contains('>SeqBad') },
+                { assert excluded.contains('SeqBad\t-200') },
+            )
+        }
+
+    }
+
+    test("gzipped weight table -- read the same as a plain one") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqGood\\td__X;p__A\\n' + 'SeqBad\\td__X;p__B\\n' + 'SeqDefault\\td__X;p__C\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqGood\\nACGT\\n>SeqBad\\nACGT\\n>SeqDefault\\nACGT\\n'
+                def weights = File.createTempFile('test', '.weights.tsv.gz')
+                new java.util.zip.GZIPOutputStream(weights.newOutputStream()).withCloseable { it << ('SeqGood\\t50\\n' + 'SeqBad\\t-200\\n').getBytes('UTF-8') }
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), file(weights.toString()), 0.0 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def taxonomy = path(process.out.taxonomy[0][1]).text
+            def excluded = path(process.out.excluded[0][1]).text
+
+            assertAll(
+                { assert taxonomy.contains('SeqGood') },
+                { assert taxonomy.contains('SeqDefault') },
+                // Only excluded if its -200 weight was actually read from the gzipped table.
+                { assert !taxonomy.contains('SeqBad') },
+                { assert excluded.contains('SeqBad\t-200') },
+            )
+        }
+
+    }
+
+    test("ungapped_sequences strips gaps; sequences keeps original content") {
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqA\\td__X;p__A\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqA\\nAC-GT.N?AC\\n'
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), [], 1.0 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+
+            def sequences = path(process.out.sequences[0][1]).text
+            def ungapped  = path(process.out.ungapped_sequences[0][1]).text
+
+            assertAll(
+                // Original content untouched -- already-aligned input must still look
+                // aligned once ENSURE_ALIGNED sees representatives downstream.
+                { assert sequences.contains('AC-GT.N?AC') },
+                { assert ungapped.contains('ACGTNAC') },
+                { assert !ungapped.contains('-') },
+                { assert !ungapped.contains('.') },
+                { assert !ungapped.contains('?') },
+            )
+        }
+
+    }
+
+    test("stub") {
+
+        options "-stub"
+
+        when {
+            process {
+                """
+                def tax = File.createTempFile('test', '.tax')
+                tax.text = 'SeqA\\td__X\\n'
+                def seq = File.createTempFile('test', '.fasta')
+                seq.text = '>SeqA\\nACGT\\n'
+                input[0] = [ [ id:'test' ], file(tax.toString()), file(seq.toString()), [], 0.0 ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            assertAll(
+                { assert snapshot(process.out).match() }
+            )
+        }
+
+    }
+
+}
